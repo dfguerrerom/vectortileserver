@@ -12,9 +12,7 @@ class LeafletPMTilesLayer(PMTilesLayer):
     def get_data_from_coords(self, lat, lon, zoom):
         """Get features at a specific latitude, longitude, and zoom level."""
 
-        data = query_rendered_features_from_pmtiles(
-            self.pmtiles_path, self.style, lat, lon, zoom
-        )
+        data = query_rendered_features_from_pmtiles(self.pmtiles_path, self.style, lat, lon, zoom)
 
         # remove the geometry from the features
         for element in data:

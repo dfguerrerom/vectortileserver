@@ -1,7 +1,7 @@
 from starlette.applications import Starlette
-from starlette.routing import Route
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
+from starlette.routing import Route
 
 from pyvectortiles.endpoints import pmtiles_endpoint, shutdown_endpoint
 
@@ -29,6 +29,4 @@ def create_app(tile_server_instance):
         )
     ]
 
-    return Starlette(
-        debug=tile_server_instance.config.debug, routes=routes, middleware=middleware
-    )
+    return Starlette(debug=tile_server_instance.config.debug, routes=routes, middleware=middleware)

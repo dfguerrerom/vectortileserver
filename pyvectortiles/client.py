@@ -1,15 +1,16 @@
 import json
-from pathlib import Path
-from typing import Dict, Tuple, Union, Optional, Any, List
 import shutil
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import httpx
-from pyvectortiles.handler import get_metadata
-from pyvectortiles.styles import generate_default_map_style
-from pyvectortiles.logger import logger
 
-from .server import TileServer
+from pyvectortiles.handler import get_metadata
+from pyvectortiles.logger import logger
+from pyvectortiles.styles import generate_default_map_style
+
 from .converter import TileConverter
+from .server import TileServer
 from .utils import is_port_in_use
 
 
@@ -22,12 +23,12 @@ class TileClient:
 
     def __init__(
         self,
-        data_source: Union[str, Path] = None,
+        data_source: Union[str, Path] | None = None,
         host: str = "localhost",
         port: Optional[int] = None,
         converter: Optional[TileConverter] = None,
-        conversion_options: Dict[str, Any] = None,
-        allowed_directories: List[Union[str, Path]] = None,
+        conversion_options: Dict[str, Any] | None = None,
+        allowed_directories: List[Union[str, Path]] | None = None,
         http_client: Optional[httpx.AsyncClient] = None,
     ):
         """
@@ -60,8 +61,8 @@ class TileClient:
 
         if self.pmtiles_path is None:
             raise ValueError(
-                "PMTiles file is not available. Ensure that a valid data_source is provided or that the "
-                "pmtiles_directory contains a PMTiles file."
+                "PMTiles file is not available. Ensure that a valid data_source is "
+                "provided or that the pmtiles_directory contains a PMTiles file."
             )
 
         # Ensure the server is running
@@ -102,9 +103,7 @@ class TileClient:
         elif existing_pmtiles := self._find_pmtiles_files(self.pmtiles_directory):
             if self.data_source.with_suffix(".pmtiles") in existing_pmtiles:
                 self.pmtiles_path = self.data_source.with_suffix(".pmtiles")
-                logger.debug(
-                    f"Found PMTiles file in provided directory: {self.pmtiles_path}"
-                )
+                logger.debug(f"Found PMTiles file in provided directory: {self.pmtiles_path}")
         else:
             self._convert_vector_data()
 
@@ -122,10 +121,7 @@ class TileClient:
             raise FileNotFoundError(f"PMTiles file not found: {self.data_source}")
 
         dest_file = self.pmtiles_directory / self.data_source.name
-        if (
-            not dest_file.exists()
-            or dest_file.stat().st_mtime < self.data_source.stat().st_mtime
-        ):
+        if not dest_file.exists() or dest_file.stat().st_mtime < self.data_source.stat().st_mtime:
             logger.debug(f"Copying PMTiles file to {dest_file}")
             shutil.copy2(self.data_source, dest_file)
 
@@ -135,9 +131,7 @@ class TileClient:
         """
         Process vector data formats and convert to PMTiles if needed.
         """
-        logger.debug(
-            f"Processing vector data: {self.data_source} -> {self.pmtiles_directory}"
-        )
+        logger.debug(f"Processing vector data: {self.data_source} -> {self.pmtiles_directory}")
 
         # Use provided converter or create a new one
         converter = self.converter
@@ -150,9 +144,7 @@ class TileClient:
             self.pmtiles_path = pmtiles_path
 
         else:
-            raise RuntimeError(
-                f"No PMTiles file was generated in {self.pmtiles_directory}"
-            )
+            raise RuntimeError(f"No PMTiles file was generated in {self.pmtiles_directory}")
 
     def _ensure_server_running(self) -> None:
         """
@@ -165,8 +157,7 @@ class TileClient:
         server = TileServer.get_instance(
             host=self.host,
             port=self.port,
-            allowed_directories=[self.pmtiles_directory]
-            + (self.allowed_directories or []),
+            allowed_directories=[self.pmtiles_directory] + (self.allowed_directories or []),
         )
         self.port = server.config.port
 

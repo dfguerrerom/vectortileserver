@@ -1,16 +1,14 @@
-import os
 import threading
 import time
 from pathlib import Path
-from typing import Union, Optional, List
+from typing import List, Optional, Union
 
 import uvicorn
 
 from pyvectortiles.app import create_app
-
+from pyvectortiles.logger import logger
 
 from .utils import get_free_port, is_port_in_use
-from pyvectortiles.logger import logger
 
 
 class ServerConfig:
@@ -20,8 +18,8 @@ class ServerConfig:
         self,
         host: str = "localhost",
         port: Optional[int] = None,
-        cors_origins: List[str] = None,
-        allowed_directories: List[Union[str, Path]] = None,
+        cors_origins: List[str] | None = None,
+        allowed_directories: List[Union[str, Path]] | None = None,
         debug: bool = True,
     ):
         self.host = host
@@ -53,10 +51,8 @@ class TileServer:
                 cls._instance = cls(**config)
             else:
                 # If allowed_directories is provided, merge it into the current configuration.
-                if "allowed_directories" in config and config["allowed_directories"]:
-                    new_dirs = [
-                        Path(d).resolve() for d in config["allowed_directories"]
-                    ]
+                if config.get("allowed_directories"):
+                    new_dirs = [Path(d).resolve() for d in config["allowed_directories"]]
                     for d in new_dirs:
                         if d not in cls._instance.config.allowed_directories:
                             cls._instance.config.allowed_directories.append(d)
@@ -71,8 +67,8 @@ class TileServer:
         host: str = "localhost",
         port: Optional[int] = None,
         auto_start: bool = False,
-        allowed_directories: List[Union[str, Path]] = None,
-        cors_origins: List[str] = None,
+        allowed_directories: List[Union[str, Path]] | None = None,
+        cors_origins: List[str] | None = None,
         debug: bool = True,
     ):
         """
@@ -105,15 +101,11 @@ class TileServer:
     def start(self) -> None:
         """Start the server in a background thread."""
         if self.is_running:
-            logger.debug(
-                f"Server already running at http://{self.config.host}:{self.config.port}"
-            )
+            logger.debug(f"Server already running at http://{self.config.host}:{self.config.port}")
             return
 
         if is_port_in_use(self.config.port):
-            logger.warning(
-                f"Port {self.config.port} is already in use. Finding a new port..."
-            )
+            logger.warning(f"Port {self.config.port} is already in use. Finding a new port...")
             self.config.port = get_free_port()
 
         self.server_thread = threading.Thread(target=self._run_server, daemon=True)
@@ -123,12 +115,10 @@ class TileServer:
         self.shutdown_event.clear()
 
         if not self._wait_for_server():
-            raise TimeoutError(f"Server failed to start within timeout period")
+            raise TimeoutError("Server failed to start within timeout period")
 
         self.is_running = True
-        logger.debug(
-            f"PMTiles server running at http://{self.config.host}:{self.config.port}"
-        )
+        logger.debug(f"PMTiles server running at http://{self.config.host}:{self.config.port}")
 
     def _run_server(self) -> None:
         """Run the uvicorn server."""
