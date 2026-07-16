@@ -9,6 +9,7 @@ def test_version_is_set():
 
 
 def test_tile_client_importable():
+    import pyvectortiles.pmtiles_layer  # noqa: F401  (pulls ipyleaflet, shapely, mvt transitively)
     from pyvectortiles.client import TileClient
 
     assert TileClient is not None
