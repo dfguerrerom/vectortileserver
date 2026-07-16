@@ -1,73 +1,69 @@
 [build-system]
-requires = ["setuptools>=61.2", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling>=1.18"]
+build-backend = "hatchling.build"
 
 [project]
 name = "pyvectortiles"
 version = "0.0.0"
 description = "Dynamic vector tile server for visualizing vectors in Jupyter notebooks"
-readme = { file = "README.rst",  content-type = "text/x-rst" }
-authors = [
-    { name = "Daniel Guerrero", email = "dfgm2006@gmail.com" }
-]
+readme = "README.md"
+license = "MIT"
+authors = [{ name = "Daniel Guerrero", email = "dfgm2006@gmail.com" }]
+requires-python = ">=3.10"
 dependencies = [
-    "starlette",
-    "uvicorn",
-    "pydantic",
-    "httpx",
-    "colorlog"
+  "starlette",
+  "uvicorn",
+  "httpx",
+  "colorlog",
+  "ipyleaflet",
+  "pmtiles",
+  "shapely",
+  "geopandas",
+  "mapbox-vector-tile",
 ]
-
 classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Intended Audience :: Developers",
-    "Topic :: Software Development :: Build Tools",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
 ]
 
-
-requires-python = ">=3.9"
-urls = {Homepage = "https://github.com/dfguerrerom/pyvectortiles"}
+[project.urls]
+Homepage = "https://github.com/dfguerrerom/ipy-pmtiles"
+Repository = "https://github.com/dfguerrerom/ipy-pmtiles"
+Changelog = "https://github.com/dfguerrerom/ipy-pmtiles/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = [
-    "pre-commit>=2.18.0",
-    "commitizen",
-    "nox",
-    "tomli",
-    "mypy",
-    "pytest",
-    "flask",
+  "pytest>=8",
+  "ruff>=0.5",
+  "black>=24",
+  "nox>=2024.4.15",
+  "commitizen>=3.29",
+  "pre-commit>=3.7",
 ]
 
-[tool.setuptools.packages.find]
-include = ["pyvectortiles*"]
+[tool.hatch.build.targets.wheel]
+packages = ["pyvectortiles"]
+
+[tool.black]
+line-length = 100
 
 [tool.ruff]
-ignore-init-module-imports = true
-fix = true
+line-length = 100
 
-[tool.ruff.flake8-quotes]
-docstring-quotes = "double"
-
-[tool.ruff.pydocstyle]
-convention = "google"
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "RUF"]
 
 [tool.pytest.ini_options]
-testpaths = "tests"
-
-[tool.coverage.run]
-source = ["pyvectortiles"]
-branch = true
+addopts = "-ra"
+testpaths = ["tests"]
 
 [tool.commitizen]
-tag_format = "v$major.$minor.$patch$prerelease"
-update_changelog_on_bump = false
-version = "1.2.2"
-version_files = [
-    "pyproject.toml:version",
-    "pyvectortiles/__init__.py:__version__",
-]
+name = "cz_conventional_commits"
+version_provider = "pep621"
+version_files = ["pyvectortiles/__init__.py:__version__"]
+tag_format = "v$version"
+update_changelog_on_bump = true
+major_version_zero = true
