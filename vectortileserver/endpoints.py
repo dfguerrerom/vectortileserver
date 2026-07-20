@@ -1,25 +1,22 @@
-from typing import Iterator, Optional, TYPE_CHECKING
-
 import re
 from pathlib import Path
+from typing import TYPE_CHECKING, Iterator, Optional
 
+from starlette.requests import Request
 from starlette.responses import (
-    Response,
-    PlainTextResponse,
     FileResponse,
+    PlainTextResponse,
+    Response,
     StreamingResponse,
 )
-from starlette.requests import Request
 
-from pyvectortiles.logger import logger
+from vectortileserver.logger import logger
 
 if TYPE_CHECKING:
-    from pyvectortiles.server import TileServer
+    from vectortileserver.server import TileServer
 
 
-def _file_iterator(
-    path: Path, start: int, length: int, chunk_size: int = 8192
-) -> Iterator[bytes]:
+def _file_iterator(path: Path, start: int, length: int, chunk_size: int = 8192) -> Iterator[bytes]:
     """
     Stream file content in chunks.
 
@@ -43,9 +40,7 @@ def _file_iterator(
             yield chunk
 
 
-def _validate_file_path(
-    file_path: Path, tile_server_instance: "TileServer"
-) -> Optional[str]:
+def _validate_file_path(file_path: Path, tile_server_instance: "TileServer") -> Optional[str]:
     """
     Validate that a file path is within allowed directories.
 
@@ -67,12 +62,10 @@ def _validate_file_path(
 
         return "Access denied: File path is outside allowed directories"
     except Exception as e:
-        return f"Invalid file path: {str(e)}"
+        return f"Invalid file path: {e!s}"
 
 
-async def pmtiles_endpoint(
-    request: Request, tile_server_instance: "TileServer"
-) -> Response:
+async def pmtiles_endpoint(request: Request, tile_server_instance: "TileServer") -> Response:
     """
     Serve a byte-range of the requested PMTiles file.
     The client must specify the filename in the URL.
@@ -132,9 +125,7 @@ async def pmtiles_endpoint(
     )
 
 
-async def shutdown_endpoint(
-    request: Request, tile_server_instance: "TileServer"
-) -> Response:
+async def shutdown_endpoint(request: Request, tile_server_instance: "TileServer") -> Response:
     """Endpoint to trigger server shutdown."""
 
     tile_server_instance.shutdown_event.set()

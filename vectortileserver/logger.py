@@ -1,5 +1,6 @@
-import sys
 import logging
+import sys
+
 import colorlog
 
 # ANSI background color codes
@@ -10,9 +11,7 @@ RESET = "\033[0m"
 
 
 class CustomLogger:
-    def __init__(
-        self, name: str, level: int = logging.DEBUG, module_color: str = YELLOW_BG
-    ):
+    def __init__(self, name: str, level: int = logging.DEBUG, module_color: str = YELLOW_BG):
         self.logger = logging.getLogger(name)
         self.logger.setLevel(level)
 
@@ -21,7 +20,10 @@ class CustomLogger:
         console_handler.setLevel(level)
 
         # Build the format string using the module_color for the logger's name.
-        format_str = f"%(log_color)s%(asctime)s - {module_color}%(name)s{RESET} - %(levelname)s - %(message)s"
+        format_str = (
+            f"%(log_color)s%(asctime)s - {module_color}%(name)s{RESET}"
+            " - %(levelname)s - %(message)s"
+        )
         console_formatter = colorlog.ColoredFormatter(
             format_str,
             log_colors={

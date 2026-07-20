@@ -1,13 +1,14 @@
-import math
-import mapbox_vector_tile
 import gzip
-from pmtiles.reader import Reader, MmapSource
+import math
 
+import mapbox_vector_tile
+from pmtiles.reader import MmapSource, Reader
 from shapely import GeometryCollection
+from shapely.affinity import scale as shapely_scale
 from shapely.geometry import Point
 from shapely.geometry import shape as shapely_shape
-from shapely.affinity import scale as shapely_scale
-from pyvectortiles.logger import logger
+
+from vectortileserver.logger import logger
 
 
 # TODO: remove this is for debugging purposes
@@ -57,9 +58,7 @@ def latlon_to_tile_coords(lat: float, lon: float, zoom: float) -> tuple:
     n = 2**zoom
     x = (lon + 180.0) / 360.0
     y = (
-        1.0
-        - math.log(math.tan(math.radians(lat)) + 1 / math.cos(math.radians(lat)))
-        / math.pi
+        1.0 - math.log(math.tan(math.radians(lat)) + 1 / math.cos(math.radians(lat))) / math.pi
     ) / 2.0
     tile_x = int(x * n)
     tile_y = int(y * n)
@@ -200,9 +199,7 @@ def get_feature_unique_key(feature, seen_ids):
     if (raw_id is None) or (raw_id in seen_ids):
         # Compute a hash using the feature's geometry (WKT) and properties.
         geom_wkt = shapely_shape(feature["geometry"]).wkt
-        fallback_hash = hash(
-            (geom_wkt, frozenset(feature.get("properties", {}).items()))
-        )
+        fallback_hash = hash((geom_wkt, frozenset(feature.get("properties", {}).items())))
         return fallback_hash
     else:
         seen_ids.add(raw_id)
@@ -313,9 +310,7 @@ def query_rendered_features_from_pmtiles(
 
             layer_maxzoom = style_layer.get("maxzoom", 14)
             data_zoom = min(desired_zoom - level_diff, layer_maxzoom)
-            tile_x, tile_y, on_zoom_x, on_zoom_y = latlon_to_tile_coords(
-                lat, lon, data_zoom
-            )
+            tile_x, tile_y, on_zoom_x, on_zoom_y = latlon_to_tile_coords(lat, lon, data_zoom)
 
             tile_data, used_zoom, used_tile_x, used_tile_y, scale_factor = (
                 get_tile_data_with_overzoom(pmtiles_reader, data_zoom, tile_x, tile_y)

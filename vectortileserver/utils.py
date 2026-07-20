@@ -22,9 +22,7 @@ def get_free_port(start_port=8000, max_port=9000):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             if s.connect_ex(("localhost", port)) != 0:
                 return port
-    raise RuntimeError(
-        f"Could not find a free port between {start_port} and {max_port}"
-    )
+    raise RuntimeError(f"Could not find a free port between {start_port} and {max_port}")
 
 
 def is_port_in_use(port):

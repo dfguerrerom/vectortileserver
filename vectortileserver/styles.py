@@ -1,5 +1,5 @@
-import random
 import colorsys
+import random
 
 
 def generate_color_palette(palette_type="vibrant", num_colors=5):
@@ -107,8 +107,8 @@ def generate_default_map_style(
     metadata: dict,
     pmtiles_url: str,
     style_mode: str = "single_symbol",
-    categorized_field: str = None,
-    categorized_values: list = None,
+    categorized_field: str | None = None,
+    categorized_values: list | None = None,
     color_palette: str = "earth",
 ) -> dict:
     """
@@ -121,9 +121,12 @@ def generate_default_map_style(
       pmtiles_url (str): URL or path to the PMTiles file.
       style_mode (str): "single_symbol" (default) for a uniform style, or "categorized" to
                         assign colors based on a specific field.
-      categorized_field (str): The field name for categorization (required if style_mode is "categorized").
-      categorized_values (list): List of distinct values for the field. Each value gets a random color.
-      color_palette (str): Color palette to use. Options: 'vibrant', 'pastel', 'earth', 'cool', 'warm'
+      categorized_field (str): The field name for categorization (required if
+                               style_mode is "categorized").
+      categorized_values (list): List of distinct values for the field. Each value
+                                 gets a random color.
+      color_palette (str): Color palette to use. Options: 'vibrant', 'pastel',
+                           'earth', 'cool', 'warm'
 
     Returns:
       dict: A style JSON dictionary.
@@ -144,16 +147,10 @@ def generate_default_map_style(
                     "categorized_field must be provided when using categorized style_mode."
                 )
             if categorized_values is None:
-                raise ValueError(
-                    "categorized_values must be provided for categorized style_mode."
-                )
-            fill_color = build_categorized_expression(
-                categorized_field, categorized_values
-            )
+                raise ValueError("categorized_values must be provided for categorized style_mode.")
+            fill_color = build_categorized_expression(categorized_field, categorized_values)
         else:
-            raise ValueError(
-                "Invalid style_mode. Use 'single_symbol' or 'categorized'."
-            )
+            raise ValueError("Invalid style_mode. Use 'single_symbol' or 'categorized'.")
 
         fill_layer = create_fill_layer(layer_id, minzoom, maxzoom, fill_color)
         outline_layer = create_outline_layer(layer_id, minzoom, maxzoom)
@@ -161,9 +158,7 @@ def generate_default_map_style(
 
     style = {
         "version": 8,
-        "sources": {
-            "pmtiles_source": {"type": "vector", "url": f"pmtiles://{pmtiles_url}"}
-        },
+        "sources": {"pmtiles_source": {"type": "vector", "url": f"pmtiles://{pmtiles_url}"}},
         "layers": layers,
     }
 

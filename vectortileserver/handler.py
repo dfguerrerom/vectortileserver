@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Any, Dict, Union
-from pmtiles.reader import Reader, MmapSource
+
+from pmtiles.reader import MmapSource, Reader
 
 
 def get_metadata(pmtiles_path: Union[str, Path]) -> Dict[str, Any]:

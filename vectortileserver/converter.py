@@ -4,14 +4,11 @@ Converter component for the Vector Tile Server package.
 This module provides functionality to convert vector data to PMTiles format.
 """
 
+import logging
 import os
 import subprocess
-import shutil
-import logging
 from pathlib import Path
-from typing import Dict, Union, Optional, Any, List
-import json
-import tempfile
+from typing import Union
 
 import geopandas as gpd
 
@@ -26,7 +23,7 @@ class TileConverter:
     def __init__(
         self,
         input_path: Union[str, Path],
-        output_path: Union[str, Path] = None,
+        output_path: Union[str, Path] | None = None,
         tippecanoe_path: str = "tippecanoe",
     ):
         """
