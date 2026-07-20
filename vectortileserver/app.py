@@ -3,7 +3,7 @@ from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 from starlette.routing import Route
 
-from pyvectortiles.endpoints import pmtiles_endpoint, shutdown_endpoint
+from vectortileserver.endpoints import pmtiles_endpoint, shutdown_endpoint
 
 
 def create_app(tile_server_instance):

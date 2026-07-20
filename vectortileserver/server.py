@@ -5,8 +5,8 @@ from typing import List, Optional, Union
 
 import uvicorn
 
-from pyvectortiles.app import create_app
-from pyvectortiles.logger import logger
+from vectortileserver.app import create_app
+from vectortileserver.logger import logger
 
 from .utils import get_free_port, is_port_in_use
 

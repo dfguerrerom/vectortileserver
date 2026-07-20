@@ -12,5 +12,5 @@ def tests(session: nox.Session) -> None:
 @nox.session(reuse_venv=True)
 def lint(session: nox.Session) -> None:
     session.install("-e", ".[dev]")
-    session.run("ruff", "check", "pyvectortiles", "tests")
-    session.run("black", "--check", "pyvectortiles", "tests")
+    session.run("ruff", "check", "vectortileserver", "tests")
+    session.run("black", "--check", "vectortileserver", "tests")

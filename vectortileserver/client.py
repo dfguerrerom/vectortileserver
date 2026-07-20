@@ -5,9 +5,9 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import httpx
 
-from pyvectortiles.handler import get_metadata
-from pyvectortiles.logger import logger
-from pyvectortiles.styles import generate_default_map_style
+from vectortileserver.handler import get_metadata
+from vectortileserver.logger import logger
+from vectortileserver.styles import generate_default_map_style
 
 from .converter import TileConverter
 from .server import TileServer
@@ -173,7 +173,7 @@ class TileClient:
 
         """
         try:
-            from pyvectortiles.pmtiles_layer import LeafletPMTilesLayer
+            from vectortileserver.pmtiles_layer import LeafletPMTilesLayer
 
             style_json = generate_default_map_style(self.metadata, self.pmtiles_url)
 

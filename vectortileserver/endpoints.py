@@ -10,10 +10,10 @@ from starlette.responses import (
     StreamingResponse,
 )
 
-from pyvectortiles.logger import logger
+from vectortileserver.logger import logger
 
 if TYPE_CHECKING:
-    from pyvectortiles.server import TileServer
+    from vectortileserver.server import TileServer
 
 
 def _file_iterator(path: Path, start: int, length: int, chunk_size: int = 8192) -> Iterator[bytes]:

@@ -1,6 +1,6 @@
 from ipyleaflet import PMTilesLayer
 
-from pyvectortiles.feature_query import query_rendered_features_from_pmtiles
+from vectortileserver.feature_query import query_rendered_features_from_pmtiles
 
 
 class LeafletPMTilesLayer(PMTilesLayer):

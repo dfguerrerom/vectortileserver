@@ -8,7 +8,7 @@ from shapely.affinity import scale as shapely_scale
 from shapely.geometry import Point
 from shapely.geometry import shape as shapely_shape
 
-from pyvectortiles.logger import logger
+from vectortileserver.logger import logger
 
 
 # TODO: remove this is for debugging purposes
