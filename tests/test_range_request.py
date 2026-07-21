@@ -60,3 +60,13 @@ def test_a_path_outside_the_allowed_directories_is_refused(tile_url):
     response = httpx.get(tile_url.split("?")[0], params={"filePath": "/etc/passwd"})
 
     assert response.status_code == 403
+
+
+def test_there_is_no_shutdown_route(tile_url):
+    """
+    An unauthenticated kill switch on a loopback port is reachable from any page
+    the user happens to have open. It had no callers; keep it that way.
+    """
+    base = tile_url.split("/pmtiles")[0]
+
+    assert httpx.get(f"{base}/shutdown").status_code == 404

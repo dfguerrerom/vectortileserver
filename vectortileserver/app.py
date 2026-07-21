@@ -3,20 +3,18 @@ from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 from starlette.routing import Route
 
-from vectortileserver.endpoints import pmtiles_endpoint, shutdown_endpoint
+from vectortileserver.endpoints import pmtiles_endpoint
 
 
 def create_app(tile_server_instance):
     """Create the Starlette application with routes and middleware."""
 
-    async def shutdown_wrapper(request):
-        return await shutdown_endpoint(request, tile_server_instance)
-
     async def pmtiles_wrapper(request):
         return await pmtiles_endpoint(request, tile_server_instance)
 
+    # No shutdown route: it had no callers, and any page the user visits can
+    # reach a loopback port. TileServer.stop() sets the event directly.
     routes = [
-        Route("/shutdown", shutdown_wrapper),
         Route("/pmtiles", pmtiles_wrapper),
     ]
 
