@@ -174,3 +174,6 @@ cython_debug/
 
 .superpowers/
 .ruff_cache/
+
+# Superpowers scratch artifacts (specs/plans) — keep local, do not track
+docs/superpowers/

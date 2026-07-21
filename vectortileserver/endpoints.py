@@ -123,10 +123,3 @@ async def pmtiles_endpoint(request: Request, tile_server_instance: "TileServer")
         headers=headers,
         media_type="application/octet-stream",
     )
-
-
-async def shutdown_endpoint(request: Request, tile_server_instance: "TileServer") -> Response:
-    """Endpoint to trigger server shutdown."""
-
-    tile_server_instance.shutdown_event.set()
-    return PlainTextResponse("Server shutdown initiated", media_type="text/plain")
