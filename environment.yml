@@ -1,0 +1,22 @@
+# Reproducible environment for developing and demoing vectortileserver.
+#
+# tippecanoe (the vector -> PMTiles converter) and the GDAL-backed geospatial
+# stack come from conda-forge; the package itself and its lighter dependencies
+# install with pip.
+#
+#   micromamba env create -f environment.yml   # or: conda env create -f environment.yml
+#   micromamba activate vectortileserver
+#   jupyter lab examples/demo.ipynb            # or: voila examples/demo.ipynb
+#
+name: vectortileserver
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - tippecanoe
+  - geopandas
+  - jupyterlab
+  - voila
+  - pip
+  - pip:
+      - -e .
