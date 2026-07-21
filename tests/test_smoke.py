@@ -13,3 +13,33 @@ def test_tile_client_importable():
     from vectortileserver.client import TileClient
 
     assert TileClient is not None
+
+
+def test_tile_client_is_exposed_at_the_top_level():
+    from vectortileserver.client import TileClient
+
+    assert vectortileserver.TileClient is TileClient
+
+
+def test_the_server_extension_does_not_drag_in_the_geo_stack():
+    """
+    The jupyter-server the extension loads into needs none of geopandas,
+    ipyleaflet, or shapely. Importing TileClient eagerly from __init__ would
+    put all of it in that process.
+    """
+    import subprocess
+    import sys
+
+    heavy = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import sys, vectortileserver._jupyter;"
+            "print([m for m in ('geopandas', 'ipyleaflet', 'shapely') if m in sys.modules])",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+    assert heavy.stdout.strip() == "[]"

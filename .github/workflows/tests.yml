@@ -27,5 +27,20 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: ${{ matrix.python-version }}
+
+      # The vector -> PMTiles tests shell out to tippecanoe. Without it they skip,
+      # which is how the broken conversion path in issue #2 shipped with green CI.
+      - uses: mamba-org/setup-micromamba@add3a49764cedee8ee24e82dfde87f5bc2914462 # v2
+        with:
+          environment-name: tippecanoe
+          create-args: tippecanoe
+          init-shell: bash
+          cache-environment: true
+      - name: Put tippecanoe on PATH
+        shell: bash -el {0}
+        run: dirname "$(which tippecanoe)" >> "$GITHUB_PATH"
+      - name: Verify tippecanoe is available
+        run: tippecanoe --version
+
       - run: python -m pip install nox
       - run: nox -s tests -p ${{ matrix.python-version }}
