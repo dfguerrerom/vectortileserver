@@ -37,3 +37,14 @@ def test_legacy_alias_is_the_same_class():
 
 def test_pmtiles_path_decodes_from_url():
     assert _layer().pmtiles_path == "/tmp/a.pmtiles"
+
+
+def test_with_style_preserves_custom_attribution():
+    layer = VectorTileLayer._from_archive(
+        url=URL,
+        style={"version": 8, "layers": []},
+        metadata=META,
+        attribution="Custom Attribution",
+    )
+    restyled = layer.with_style({"version": 8, "layers": [{"id": "z"}]})
+    assert restyled.attribution == "Custom Attribution"

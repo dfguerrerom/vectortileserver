@@ -79,6 +79,7 @@ class VectorTileLayer(PMTilesLayer):
             metadata=self._vts_metadata,
             source=self._vts_source,
             workspace=self.workspace,
+            attribution=self.attribution,
         )
 
     def get_data_from_coords(self, lat, lon, zoom):
