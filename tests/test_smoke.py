@@ -21,11 +21,11 @@ def test_tile_client_is_exposed_at_the_top_level():
     assert vectortileserver.TileClient is TileClient
 
 
-def test_the_server_extension_does_not_drag_in_the_geo_stack():
+def test_a_bare_import_stays_light():
     """
-    The jupyter-server the extension loads into needs none of geopandas,
-    ipyleaflet, or shapely. Importing TileClient eagerly from __init__ would
-    put all of it in that process.
+    `import vectortileserver` (e.g. just to read __version__) must not drag in
+    geopandas, ipyleaflet, or shapely. TileClient is exposed lazily to keep it
+    cheap.
     """
     import subprocess
     import sys
@@ -34,7 +34,7 @@ def test_the_server_extension_does_not_drag_in_the_geo_stack():
         [
             sys.executable,
             "-c",
-            "import sys, vectortileserver._jupyter;"
+            "import sys, vectortileserver;"
             "print([m for m in ('geopandas', 'ipyleaflet', 'shapely') if m in sys.modules])",
         ],
         capture_output=True,

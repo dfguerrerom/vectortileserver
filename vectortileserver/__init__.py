@@ -20,8 +20,8 @@ def __getattr__(name: str):
     Expose TileClient lazily.
 
     Importing it eagerly would drag geopandas and ipyleaflet into every process
-    that touches this package — including the jupyter-server the extension in
-    :mod:`vectortileserver._jupyter` loads into, which needs none of it.
+    that merely imports this package (e.g. to read ``__version__``); the lazy
+    hook keeps a bare ``import vectortileserver`` cheap.
     """
     if name == "TileClient":
         from vectortileserver.client import TileClient
