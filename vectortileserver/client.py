@@ -331,9 +331,10 @@ class TileClient:
         """Create a PMTiles layer for ipyleaflet.
 
         Args:
-            style: Optional custom style for the layer, passed through verbatim.
-            layers_to_show: Restrict the generated style to these layer IDs.
-                Ignored when a custom ``style`` is given.
+            style: Optional custom style for the layer. May be ``None`` (auto default style),
+                a full MapLibre style dict (passed through), or a builder callable
+                ``(metadata, pmtiles_url) -> dict``.
+            layers_to_show: Restrict the rendered style to these layer IDs.
         """
         try:
             from vectortileserver.pmtiles_layer import VectorTileLayer
