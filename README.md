@@ -6,11 +6,35 @@ With `TileClient`, you can easily create a local vector tile server to visualize
 
 If you have a vector file (`.shp`, `.geojson`, `.gpkg`, etc.), `TileClient` will convert it to PMTiles format using `tippecanoe`. If `tippecanoe` is not installed, an error will be raised. However, you can directly visualize local PMTiles as a data source.
 
+## Installation
+
+The quickest way to get everything — the package, its dependencies, and `tippecanoe` — is the bundled conda/micromamba environment:
+
+```bash
+micromamba env create -f environment.yml   # or: conda env create -f environment.yml
+micromamba activate vectortileserver
+```
+
+Or install with pip and provide `tippecanoe` yourself (see [Installing Tippecanoe](#installing-tippecanoe)):
+
+```bash
+pip install vectortileserver
+```
+
+## Demo
+
+[`examples/demo.ipynb`](examples/demo.ipynb) builds a point layer end to end and doubles as a bridge test. Open it in JupyterLab, or serve it with Voila to confirm tiles load in a sandboxed webview (watch the Network tab for the absence of direct `127.0.0.1` requests):
+
+```bash
+jupyter lab examples/demo.ipynb
+voila examples/demo.ipynb
+```
+
 ## Usage
 
 ```python
 from ipyleaflet import Map
-from vectortileserver.client import TileClient
+from vectortileserver import TileClient
 
 client = TileClient("points.geojson")   # converts to points.pmtiles
 m = Map(center=client.center, zoom=10)
@@ -64,6 +88,8 @@ client.enable_jupyter_loopback()   # idempotent
 ```
 
 ## Installing Tippecanoe
+
+The bundled `environment.yml` already installs `tippecanoe` from conda-forge, so if you created the environment above you can skip this section.
 
 [Tippecanoe](https://github.com/felt/tippecanoe) is a tool for generating vector tile sets from large collections of GeoJSON features. It is designed to make mapping large datasets easy and efficient.
 
