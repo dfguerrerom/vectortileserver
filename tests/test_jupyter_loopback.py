@@ -1,15 +1,14 @@
 """
 Reaching the tile server from the browser (issue #3).
 
-PMTiles are read with HTTP Range requests. In JupyterLab the browser can talk to
-the kernel's loopback port directly; under Voila, SEPAL, VS Code, or Colab it
-cannot, and requests have to travel over the jupyter-server proxy or the kernel
-comm bridge instead. What matters is that `Range` and `206` survive that trip.
+PMTiles are read with HTTP Range requests. The browser reaches the kernel's
+loopback tile server through the jupyter_loopback comm bridge — which works in
+every frontend (JupyterLab, Voila, SEPAL, VS Code, Colab). What matters is that
+`Range` and `206` survive that trip. A URL prefix is a manual reverse-proxy
+override, nothing more; there is deliberately no autodetected proxy path.
 """
 
-import json
 import sys
-from pathlib import Path
 
 import pytest
 
@@ -28,32 +27,28 @@ def client(pmtiles_file):
 # --------------------------------------------------------------------------- #
 
 
-def test_no_prefix_outside_a_kernel():
+def test_no_prefix_by_default():
     assert get_default_client_prefix() is None
 
 
-def test_the_prefix_is_autodetected_inside_a_kernel(monkeypatch):
-    monkeypatch.setenv("JPY_SESSION_NAME", "a-session")
-
-    assert get_default_client_prefix() == "/vectortileserver-proxy/{port}"
-
-
-def test_the_prefix_includes_the_hub_base_url(monkeypatch):
+def test_no_prefix_is_autodetected_inside_a_kernel(monkeypatch):
+    """
+    Regression: a kernel used to autodetect a jupyter-server proxy prefix, which
+    breaks under Voila. Being in a kernel must NOT produce a prefix on its own.
+    """
     monkeypatch.setenv("JPY_SESSION_NAME", "a-session")
     monkeypatch.setenv("JUPYTERHUB_SERVICE_PREFIX", "/user/alice/")
 
-    assert get_default_client_prefix() == "/user/alice/vectortileserver-proxy/{port}"
+    assert get_default_client_prefix() is None
 
 
-def test_the_environment_overrides_autodetection(monkeypatch):
-    monkeypatch.setenv("JPY_SESSION_NAME", "a-session")
+def test_the_environment_sets_a_manual_prefix(monkeypatch):
     monkeypatch.setenv("VECTORTILESERVER_CLIENT_PREFIX", "/custom/{port}")
 
     assert get_default_client_prefix() == "/custom/{port}"
 
 
 def test_an_empty_environment_value_forces_the_loopback_url(monkeypatch):
-    monkeypatch.setenv("JPY_SESSION_NAME", "a-session")
     monkeypatch.setenv("VECTORTILESERVER_CLIENT_PREFIX", "")
 
     assert get_default_client_prefix() is None
@@ -64,18 +59,17 @@ def test_an_empty_environment_value_forces_the_loopback_url(monkeypatch):
 # --------------------------------------------------------------------------- #
 
 
-def test_the_url_is_a_loopback_url_outside_a_kernel(client):
+def test_the_url_is_a_loopback_url_by_default(client):
     assert client.client_prefix is None
     assert client.pmtiles_url.startswith(f"http://localhost:{client.server_port}/pmtiles?filePath=")
 
 
-def test_the_url_goes_through_the_proxy_inside_a_kernel(pmtiles_file, monkeypatch):
-    monkeypatch.setenv("JPY_SESSION_NAME", "a-session")
+def test_a_manual_prefix_is_used_in_the_url(pmtiles_file, monkeypatch):
+    monkeypatch.setenv("VECTORTILESERVER_CLIENT_PREFIX", "/proxy/{port}")
 
     client = TileClient(data_source=pmtiles_file, allowed_directories=[pmtiles_file.parent])
 
-    prefix = f"/vectortileserver-proxy/{client.server_port}"
-
+    prefix = f"/proxy/{client.server_port}"
     assert client.client_prefix == prefix
     assert client.pmtiles_url == f"{prefix}/pmtiles?filePath={client.pmtiles_path}"
 
@@ -88,13 +82,13 @@ def test_the_tile_url_always_ends_in_pmtiles(client, pmtiles_file, monkeypatch):
     """
     assert client.pmtiles_url.endswith(".pmtiles")
 
-    monkeypatch.setenv("JPY_SESSION_NAME", "a-session")
+    monkeypatch.setenv("VECTORTILESERVER_CLIENT_PREFIX", "/proxy/{port}")
     proxied = TileClient(data_source=pmtiles_file, allowed_directories=[pmtiles_file.parent])
     assert proxied.pmtiles_url.endswith(".pmtiles")
 
 
 def test_a_full_url_prefix_is_not_mangled(pmtiles_file, monkeypatch):
-    """A prefix that is already a URL must not be turned into `/https://…`."""
+    """A reverse-proxy prefix that is already a URL must not become `/https://…`."""
     monkeypatch.setenv("VECTORTILESERVER_CLIENT_PREFIX", "https://tiles.example.org/proxy/{port}/")
 
     client = TileClient(data_source=pmtiles_file, allowed_directories=[pmtiles_file.parent])
@@ -195,21 +189,18 @@ def fake_loopback(monkeypatch):
 
 def test_the_bridge_is_installed_once_per_port(fake_loopback):
     """Ten layers on one port must not emit ten shims."""
-    bridge.enable_for_port(4242, path_prefix="/vectortileserver-proxy/4242")
-    bridge.enable_for_port(4242, path_prefix="/vectortileserver-proxy/4242")
+    bridge.enable_for_port(4242)
+    bridge.enable_for_port(4242)
 
     assert fake_loopback.enabled
-    assert fake_loopback.calls == [(4242, "/vectortileserver-proxy/4242")]
+    assert fake_loopback.calls == [(4242, None)]
 
 
 def test_a_changed_prefix_is_reinstalled(fake_loopback):
     bridge.enable_for_port(4242)
-    bridge.enable_for_port(4242, path_prefix="/user/alice/vectortileserver-proxy/4242")
+    bridge.enable_for_port(4242, path_prefix="/proxy/4242")
 
-    assert fake_loopback.calls == [
-        (4242, None),
-        (4242, "/user/alice/vectortileserver-proxy/4242"),
-    ]
+    assert fake_loopback.calls == [(4242, None), (4242, "/proxy/4242")]
 
 
 def test_a_trailing_slash_is_not_a_different_prefix(fake_loopback):
@@ -280,47 +271,3 @@ def test_creating_a_layer_bridges_the_port(client, monkeypatch):
     client.create_leaflet_layer()
 
     assert bridged == [(client.server_port, None)]
-
-
-# --------------------------------------------------------------------------- #
-# Jupyter Server extension                                                      #
-# --------------------------------------------------------------------------- #
-
-
-def test_the_server_extension_declares_itself():
-    from vectortileserver import _jupyter
-
-    assert _jupyter._jupyter_server_extension_points() == [{"module": "vectortileserver._jupyter"}]
-
-
-def test_loading_the_extension_registers_our_namespace(monkeypatch):
-    from vectortileserver import _jupyter
-
-    registered = {}
-    monkeypatch.setattr(
-        _jupyter,
-        "setup_proxy_handler",
-        lambda web_app, namespace: registered.update(namespace=namespace),
-    )
-
-    class FakeServerApp:
-        web_app = type("FakeWebApp", (), {"settings": {"base_url": "/"}})()
-        log = type("FakeLog", (), {"info": lambda self, *args: None})()
-
-    _jupyter._load_jupyter_server_extension(FakeServerApp())
-
-    assert registered["namespace"] == "vectortileserver"
-
-
-def test_the_shipped_config_enables_the_extension():
-    """The config file and the module path have to stay in step."""
-    config_file = (
-        Path(__file__).parent.parent
-        / "jupyter-config"
-        / "jupyter_server_config.d"
-        / "vectortileserver.json"
-    )
-
-    config = json.loads(config_file.read_text())
-
-    assert config["ServerApp"]["jpserver_extensions"] == {"vectortileserver._jupyter": True}

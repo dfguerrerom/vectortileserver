@@ -44,17 +44,12 @@ The defaults live in `vectortileserver.converter.DEFAULT_CONVERSION_OPTIONS`.
 
 ## Notebook frontends
 
-Tiles are fetched by the *browser*, which in many frontends cannot reach the kernel's `http://localhost:<port>`. `vectortileserver` handles this with [`jupyter-loopback`](https://github.com/banesullivan/jupyter-loopback), in two layers:
-
-- A **jupyter-server extension**, enabled on install, proxies `<base_url>/vectortileserver-proxy/<port>/…` to the tile server. This is what JupyterLab, Notebook 7, and JupyterHub use.
-- A **comm bridge** tunnels requests over the kernel's comm channel for frontends whose webview is not the jupyter-server origin — Voila, SEPAL, VS Code Jupyter, Colab. `create_leaflet_layer()` installs it automatically, once per port.
-
-Both preserve HTTP Range requests and `206 Partial Content`, which is what PMTiles needs.
+Tiles are fetched by the *browser*, which in many frontends cannot reach the kernel's `http://localhost:<port>` directly. `vectortileserver` tunnels them over the kernel's own comm channel with [`jupyter-loopback`](https://github.com/banesullivan/jupyter-loopback): `create_leaflet_layer()` installs the bridge automatically (once per port), and the same path works in JupyterLab, Notebook 7, Voila, SEPAL, VS Code Jupyter, and Colab. HTTP Range requests and `206 Partial Content` — what PMTiles relies on — survive the trip.
 
 | Environment variable | Effect |
 | --- | --- |
 | `VECTORTILESERVER_DISABLE_JUPYTER_LOOPBACK=1` | Never install the comm bridge. |
-| `VECTORTILESERVER_CLIENT_PREFIX` | Override the proxy prefix — a root-relative path (`/user/alice/vectortileserver-proxy/{port}`) or a full URL (`https://host/proxy/{port}`); `{port}` is substituted. Set it to an empty string to force plain `http://localhost:<port>` URLs. |
+| `VECTORTILESERVER_CLIENT_PREFIX` | Route tile URLs through a reverse proxy you run — a root-relative path (`/user/alice/tiles/{port}`) or a full URL (`https://host/tiles/{port}`); `{port}` is substituted. An empty value forces the default `http://localhost:<port>` URLs. |
 
 To bridge a port yourself:
 

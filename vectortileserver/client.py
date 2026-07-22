@@ -119,9 +119,10 @@ class TileClient:
                 keep every feature at every zoom level.
             allowed_directories: List of directories that can be accessed by the server.
             http_client: Custom HTTP client for testing.
-            client_prefix: URL prefix the browser uses to reach the server through the
-                jupyter-server proxy. Autodetected inside a Jupyter kernel; pass an
-                empty string to force the plain loopback URL.
+            client_prefix: Optional URL prefix for a reverse proxy the caller fronts
+                the server with. Left unset the tile URL is the loopback URL, tunneled
+                to the browser by the comm bridge; pass an empty string to force that
+                explicitly.
         """
         logger.debug(f"Initializing tile client with data source: {data_source}")
 
@@ -181,9 +182,9 @@ class TileClient:
         """
         Base URL the browser should use to reach the tile server.
 
-        Inside a Jupyter kernel this is the root-relative proxy prefix, which the
-        browser resolves against the notebook origin, so it works from sandboxed
-        webviews too. Elsewhere it falls back to the loopback URL.
+        The loopback URL by default — the comm bridge tunnels it, which works in
+        every frontend. When a reverse-proxy ``client_prefix`` is set, that path
+        (or full URL) is used instead.
         """
         prefix = self.client_prefix
         if not prefix:

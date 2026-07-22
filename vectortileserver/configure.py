@@ -1,38 +1,36 @@
 """
 Client-side connection configuration.
 
-The kernel reaches its own tile server over loopback, but the *browser* often
-cannot: under JupyterHub, Voila, or SEPAL the notebook page is served from a
-different origin than ``http://localhost:<port>``. ``jupyter_loopback`` solves
-this by mounting an HTTP proxy on the jupyter-server at
-``<base_url>/vectortileserver-proxy/<port>/…``; this module works out the prefix
-to put in front of browser-facing URLs so they land there.
+The kernel reaches its own tile server over loopback; the *browser* reaches it
+through the ``jupyter_loopback`` comm bridge (see
+:mod:`vectortileserver._jupyter_loopback_bridge`), which works in every frontend.
+
+A URL prefix is only needed when the tile server is fronted by a reverse proxy
+the caller sets up themselves, so it is a manual override rather than something
+autodetected — an autodetected proxy prefix cannot be relied on (e.g. Voila,
+which is a separate server, answers the detection probe with a 405 and then 403s
+the tile request).
 """
 
 import os
 from typing import Optional
-
-from vectortileserver.logger import logger
-
-#: Namespace passed to :func:`jupyter_loopback.setup_proxy_handler` in
-#: :mod:`vectortileserver._jupyter`. Autodetection must use the same string.
-LOOPBACK_NAMESPACE = "vectortileserver"
 
 _PREFIX_ENV_VAR = "VECTORTILESERVER_CLIENT_PREFIX"
 
 
 def get_default_client_prefix(prefix: Optional[str] = None) -> Optional[str]:
     """
-    Resolve the URL prefix the browser should use to reach the tile server.
+    Resolve an optional URL prefix for browser-facing tile URLs.
+
+    Returns ``None`` by default: the tile URL is then the loopback URL and the
+    comm bridge tunnels it over the kernel's comm channel. Supply a prefix only
+    to route through a reverse proxy you control.
 
     Resolution order:
 
-    1. The explicit ``prefix`` argument.
-    2. The ``VECTORTILESERVER_CLIENT_PREFIX`` environment variable. Setting it
-       to an empty string forces the plain loopback URL, which is the escape
-       hatch when autodetection guesses wrong.
-    3. :func:`jupyter_loopback.autodetect_prefix`, which returns a prefix only
-       inside a Jupyter kernel.
+    1. The explicit ``prefix`` argument (an empty string forces loopback).
+    2. ``VECTORTILESERVER_CLIENT_PREFIX`` (an empty string forces loopback).
+    3. Otherwise ``None`` — loopback URL + comm bridge.
 
     Args:
         prefix: Explicit prefix, possibly containing a ``{port}`` placeholder.
@@ -47,13 +45,4 @@ def get_default_client_prefix(prefix: Optional[str] = None) -> Optional[str]:
     if env_prefix is not None:
         return env_prefix or None
 
-    try:
-        from jupyter_loopback import autodetect_prefix
-    except ImportError:
-        return None
-
-    auto = autodetect_prefix(LOOPBACK_NAMESPACE)
-    if auto is not None:
-        logger.debug(f"Autodetected Jupyter proxy prefix: {auto}")
-
-    return auto
+    return None
