@@ -44,6 +44,31 @@ m
 
 A conversion is reused as long as the `.pmtiles` file is at least as new as its source *and* was built with the same `conversion_options` — the options are recorded in a `<name>.pmtiles.json` sidecar. Edit the source or change the options and the next `TileClient` reconverts. Delete the `.pmtiles` to force a rebuild.
 
+## Layer-first API (recommended)
+
+```python
+import vectortileserver as vts
+from ipyleaflet import Map
+
+m = Map()
+layer = await vts.open_async("data.geojson")   # convert off-thread → ready layer
+m.add(layer)
+vts.fit(m)                                      # zoom to the layer's own bounds
+
+# many datasets, in parallel:
+for layer in await vts.open_many(["a.geojson", "b.shp"]):
+    m.add(layer)
+vts.fit(m)
+```
+
+`open_async` runs tippecanoe on a worker thread and returns a `VectorTileLayer`
+(an ipyleaflet `PMTilesLayer`) that carries `.bounds` (`[[S,W],[N,E]]`),
+`.center`, and `.list_layers()`. Style it with a builder — `vts.default_style`,
+`vts.single_symbol_style(color=...)`, or `vts.categorized_style(field, values)` —
+and restyle by swapping `layer.with_style(...)`. For advanced control (explicit
+lifecycle, isolation), construct a `vts.TileWorkspace`. The classic
+`TileClient` API keeps working unchanged.
+
 ## Point retention
 
 Tippecanoe is tuned for basemaps: below its computed base zoom it keeps only a fraction of the features per level, and it discards whatever else is needed to stay under 200k features and 500KB per tile. For a point layer that is silent data loss — 200 points can render as 1 at zoom 0.
