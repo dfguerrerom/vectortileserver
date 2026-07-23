@@ -1,3 +1,5 @@
+import threading
+
 from vectortileserver.pmtiles_layer import VectorTileLayer
 from vectortileserver.workspace import TileWorkspace
 
@@ -25,3 +27,45 @@ def test_bounds_unions_all_registered_archives(pmtiles_file, tmp_path):
     ws.open(pmtiles_file)
     ws.open(second)
     assert ws.bounds() == [[0.0, 0.0], [0.01, 0.01]]
+
+
+def test_construction_lock_is_stable_per_key_and_distinct_across_keys(pmtiles_file):
+    ws = TileWorkspace(allowed_directories=[pmtiles_file.parent])
+    lock_a = ws._construction_lock("key-a")
+    lock_a_again = ws._construction_lock("key-a")
+    lock_b = ws._construction_lock("key-b")
+    assert lock_a is lock_a_again
+    assert lock_a is not lock_b
+
+
+def test_concurrent_open_of_same_source_builds_one_client(pmtiles_file):
+    ws = TileWorkspace(allowed_directories=[pmtiles_file.parent])
+    barrier = threading.Barrier(2)
+    layers = [None, None]
+
+    def worker(i):
+        barrier.wait()
+        layers[i] = ws.open(pmtiles_file)
+
+    threads = [threading.Thread(target=worker, args=(i,)) for i in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert len(ws._clients) == 1
+    registered_client = next(iter(ws._clients.values()))
+    assert layers[0].url == registered_client.pmtiles_url
+    assert layers[1].url == registered_client.pmtiles_url
+
+
+def test_reopen_with_different_conversion_options_reuses_cached_client(pmtiles_file):
+    ws = TileWorkspace(allowed_directories=[pmtiles_file.parent])
+    ws.open(pmtiles_file)
+    client_before = next(iter(ws._clients.values()))
+
+    ws.open(pmtiles_file, conversion_options={"max_zoom": 5})
+
+    assert len(ws._clients) == 1
+    client_after = next(iter(ws._clients.values()))
+    assert client_after is client_before
