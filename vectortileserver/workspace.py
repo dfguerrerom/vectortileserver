@@ -79,7 +79,7 @@ class TileWorkspace:
                     },
                 )
             with self._lock:
-                self.port = client.server_port
+                self.port = client.server_port  # all clients share the one server
                 self._clients[key] = client
             return client
 

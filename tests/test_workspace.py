@@ -38,25 +38,35 @@ def test_construction_lock_is_stable_per_key_and_distinct_across_keys(pmtiles_fi
     assert lock_a is not lock_b
 
 
-def test_concurrent_open_of_same_source_builds_one_client(pmtiles_file):
+def test_concurrent_open_of_same_source_builds_one_client(pmtiles_file, monkeypatch):
+    import vectortileserver.client as client_mod
+
+    builds = []
+    real_init = client_mod.TileClient.__init__
+
+    def counting_init(self, *args, **kwargs):
+        builds.append(1)
+        return real_init(self, *args, **kwargs)
+
+    monkeypatch.setattr(client_mod.TileClient, "__init__", counting_init)
+
     ws = TileWorkspace(allowed_directories=[pmtiles_file.parent])
     barrier = threading.Barrier(2)
-    layers = [None, None]
+    results = []
 
-    def worker(i):
+    def worker():
         barrier.wait()
-        layers[i] = ws.open(pmtiles_file)
+        results.append(ws.open(pmtiles_file))
 
-    threads = [threading.Thread(target=worker, args=(i,)) for i in range(2)]
+    threads = [threading.Thread(target=worker) for _ in range(2)]
     for t in threads:
         t.start()
     for t in threads:
         t.join()
 
+    assert len(builds) == 1  # built exactly once despite two concurrent opens
     assert len(ws._clients) == 1
-    registered_client = next(iter(ws._clients.values()))
-    assert layers[0].url == registered_client.pmtiles_url
-    assert layers[1].url == registered_client.pmtiles_url
+    assert results[0].url == results[1].url
 
 
 def test_reopen_with_different_conversion_options_reuses_cached_client(pmtiles_file):
