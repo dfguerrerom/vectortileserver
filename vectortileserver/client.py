@@ -361,8 +361,8 @@ class TileClient:
                 **style_json,
                 "layers": [
                     layer
-                    for layer in style_json["layers"]
-                    if layer["source-layer"] in layers_to_show
+                    for layer in style_json.get("layers", [])
+                    if layer.get("source-layer") in layers_to_show
                 ],
             }
 
