@@ -22,6 +22,12 @@ class TileWorkspace:
     A source is converted and cached on first open; ``conversion_options``
     given when reopening an already-cached source are ignored — build a new
     ``TileWorkspace`` to reconvert with different options.
+
+    Caveat: the underlying tile server is a process-wide singleton, so
+    ``host``/``port`` only take effect for the first server started in the
+    process — workspaces created afterward share that same server regardless
+    of what they were given. Likewise, ``stop()`` tears down that shared
+    server for every ``TileWorkspace`` in the process, not just this one.
     """
 
     def __init__(
@@ -116,10 +122,16 @@ class TileWorkspace:
 
     def bounds(self):
         """Fit-ready union over every registered archive, or ``None``."""
-        return union_bbox_dicts(c.metadata.get("bounds") for c in self._clients.values())
+        with self._lock:
+            clients = list(self._clients.values())
+        return union_bbox_dicts(c.metadata.get("bounds") for c in clients)
 
     def stop(self):
-        """Best-effort shutdown of the shared server."""
+        """Best-effort shutdown of the shared server.
+
+        This stops the process-global tile server, which is used by ALL
+        ``TileWorkspace`` instances in the process — not just this one.
+        """
         from vectortileserver.server import TileServer
 
         if TileServer._instance is not None:
