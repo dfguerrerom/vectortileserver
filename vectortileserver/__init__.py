@@ -35,8 +35,8 @@ _LAZY = {
     "open": "vectortileserver.workspace",
     "open_async": "vectortileserver.workspace",
     "open_many": "vectortileserver.workspace",
-    "fit": "vectortileserver.fit",
-    "union_bounds": "vectortileserver.fit",
+    "fit": "vectortileserver._fit",
+    "union_bounds": "vectortileserver._fit",
     "default_style": "vectortileserver.styles",
     "categorized_style": "vectortileserver.styles",
     "single_symbol_style": "vectortileserver.styles",
@@ -51,5 +51,10 @@ def __getattr__(name: str):
     if module is not None:
         import importlib
 
-        return getattr(importlib.import_module(module), name)
+        obj = getattr(importlib.import_module(module), name)
+        # importlib binds the submodule as a package attribute; caching the
+        # resolved object here keeps it from being shadowed by a submodule
+        # whose leaf name matches an export.
+        globals()[name] = obj
+        return obj
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

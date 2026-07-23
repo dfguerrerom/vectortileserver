@@ -1,4 +1,4 @@
-from vectortileserver.fit import fit, union_bounds
+from vectortileserver._fit import fit, union_bounds
 from vectortileserver.pmtiles_layer import VectorTileLayer
 
 
