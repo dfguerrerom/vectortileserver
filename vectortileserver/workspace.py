@@ -1,3 +1,4 @@
+import asyncio
 import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
@@ -88,6 +89,30 @@ class TileWorkspace:
         layer = client.create_leaflet_layer(style=style, layers_to_show=layers_to_show)
         layer.workspace = self
         return layer
+
+    async def open_async(self, source, *, style=None, layers_to_show=None, conversion_options=None):
+        """Convert (if needed) off-thread, then build the widget on the loop
+        thread. Drops into Solara ``use_task(prefer_threaded=False)``."""
+        # Conversion + server work is blocking and widget-free → offload it.
+        client = await asyncio.to_thread(self._client_for, source, conversion_options)
+        # Widget construction must stay on the calling (loop) thread.
+        layer = client.create_leaflet_layer(style=style, layers_to_show=layers_to_show)
+        layer.workspace = self
+        return layer
+
+    async def open_many(self, sources, *, style=None, layers_to_show=None, conversion_options=None):
+        """Open many sources concurrently (parallel tippecanoe via the thread pool)."""
+        return await asyncio.gather(
+            *(
+                self.open_async(
+                    s,
+                    style=style,
+                    layers_to_show=layers_to_show,
+                    conversion_options=conversion_options,
+                )
+                for s in sources
+            )
+        )
 
     def bounds(self):
         """Fit-ready union over every registered archive, or ``None``."""

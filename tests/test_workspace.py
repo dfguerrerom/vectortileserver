@@ -1,6 +1,8 @@
+import asyncio
 import threading
 
 from vectortileserver.pmtiles_layer import VectorTileLayer
+from vectortileserver.pmtiles_layer import VectorTileLayer as _VTL
 from vectortileserver.workspace import TileWorkspace
 
 
@@ -79,3 +81,20 @@ def test_reopen_with_different_conversion_options_reuses_cached_client(pmtiles_f
     assert len(ws._clients) == 1
     client_after = next(iter(ws._clients.values()))
     assert client_after is client_before
+
+
+def test_open_async_returns_a_ready_layer(pmtiles_file):
+    ws = TileWorkspace(allowed_directories=[pmtiles_file.parent])
+    layer = asyncio.run(ws.open_async(pmtiles_file))
+    assert isinstance(layer, _VTL)
+    assert layer.bounds == [[0.0, 0.0], [0.01, 0.01]]
+
+
+def test_open_many_loads_every_source(pmtiles_file, tmp_path):
+    from tests.conftest import write_minimal_pmtiles
+
+    second = write_minimal_pmtiles(tmp_path / "second.pmtiles")
+    ws = TileWorkspace(allowed_directories=[pmtiles_file.parent, tmp_path])
+    layers = asyncio.run(ws.open_many([pmtiles_file, second]))
+    assert len(layers) == 2
+    assert all(isinstance(layer, _VTL) for layer in layers)
