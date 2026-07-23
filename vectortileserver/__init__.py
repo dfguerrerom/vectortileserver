@@ -12,20 +12,44 @@ __email__ = "dfgm2006@gmail.com"
 
 __license__ = "MIT"
 
-__all__ = ["TileClient"]
+__all__ = [  # noqa: RUF022 (grouped by module, matching _LAZY below)
+    "TileClient",
+    "VectorTileLayer",
+    "TileWorkspace",
+    "default_workspace",
+    "open",
+    "open_async",
+    "open_many",
+    "fit",
+    "union_bounds",
+    "default_style",
+    "categorized_style",
+    "single_symbol_style",
+]
+
+_LAZY = {
+    "TileClient": "vectortileserver.client",
+    "VectorTileLayer": "vectortileserver.pmtiles_layer",
+    "TileWorkspace": "vectortileserver.workspace",
+    "default_workspace": "vectortileserver.workspace",
+    "open": "vectortileserver.workspace",
+    "open_async": "vectortileserver.workspace",
+    "open_many": "vectortileserver.workspace",
+    "fit": "vectortileserver.fit",
+    "union_bounds": "vectortileserver.fit",
+    "default_style": "vectortileserver.styles",
+    "categorized_style": "vectortileserver.styles",
+    "single_symbol_style": "vectortileserver.styles",
+}
 
 
 def __getattr__(name: str):
-    """
-    Expose TileClient lazily.
+    """Expose the public surface lazily so a bare ``import vectortileserver`` does
+    not drag in ipyleaflet / geopandas (the jupyter-server process imports this
+    module and needs neither)."""
+    module = _LAZY.get(name)
+    if module is not None:
+        import importlib
 
-    Importing it eagerly would drag geopandas and ipyleaflet into every process
-    that merely imports this package (e.g. to read ``__version__``); the lazy
-    hook keeps a bare ``import vectortileserver`` cheap.
-    """
-    if name == "TileClient":
-        from vectortileserver.client import TileClient
-
-        return TileClient
-
+        return getattr(importlib.import_module(module), name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
