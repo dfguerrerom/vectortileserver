@@ -124,3 +124,35 @@ class TileWorkspace:
 
         if TileServer._instance is not None:
             TileServer._instance.stop()
+
+
+_DEFAULT_WORKSPACE: Optional[TileWorkspace] = None
+
+
+def default_workspace() -> TileWorkspace:
+    """Process-wide workspace backing the module-level ``open*`` helpers."""
+    global _DEFAULT_WORKSPACE
+    if _DEFAULT_WORKSPACE is None:
+        _DEFAULT_WORKSPACE = TileWorkspace()
+    return _DEFAULT_WORKSPACE
+
+
+def open(source, *, style=None, layers_to_show=None, conversion_options=None):
+    """Open a dataset on the default workspace (synchronous)."""
+    return default_workspace().open(
+        source, style=style, layers_to_show=layers_to_show, conversion_options=conversion_options
+    )
+
+
+async def open_async(source, *, style=None, layers_to_show=None, conversion_options=None):
+    """Open a dataset on the default workspace, converting off-thread."""
+    return await default_workspace().open_async(
+        source, style=style, layers_to_show=layers_to_show, conversion_options=conversion_options
+    )
+
+
+async def open_many(sources, *, style=None, layers_to_show=None, conversion_options=None):
+    """Open many datasets on the default workspace, in parallel."""
+    return await default_workspace().open_many(
+        sources, style=style, layers_to_show=layers_to_show, conversion_options=conversion_options
+    )

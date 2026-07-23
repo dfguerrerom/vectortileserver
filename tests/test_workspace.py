@@ -3,7 +3,8 @@ import threading
 
 from vectortileserver.pmtiles_layer import VectorTileLayer
 from vectortileserver.pmtiles_layer import VectorTileLayer as _VTL
-from vectortileserver.workspace import TileWorkspace
+from vectortileserver.workspace import TileWorkspace, default_workspace
+from vectortileserver.workspace import open as ws_open
 
 
 def test_open_returns_a_layer_bound_to_the_workspace(pmtiles_file):
@@ -98,3 +99,13 @@ def test_open_many_loads_every_source(pmtiles_file, tmp_path):
     layers = asyncio.run(ws.open_many([pmtiles_file, second]))
     assert len(layers) == 2
     assert all(isinstance(layer, _VTL) for layer in layers)
+
+
+def test_default_workspace_is_a_singleton():
+    assert default_workspace() is default_workspace()
+
+
+def test_module_open_uses_the_default_workspace(pmtiles_file):
+    layer = ws_open(pmtiles_file)
+    assert layer.workspace is default_workspace()
+    assert layer.bounds == [[0.0, 0.0], [0.01, 0.01]]
