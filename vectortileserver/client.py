@@ -1,5 +1,4 @@
 import json
-import shutil
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import quote
@@ -12,7 +11,6 @@ from vectortileserver.converter import TileConverter
 from vectortileserver.handler import get_metadata
 from vectortileserver.logger import logger
 from vectortileserver.server import TileServer
-from vectortileserver.styles import generate_default_map_style
 from vectortileserver.utils import is_port_in_use
 
 
@@ -285,12 +283,8 @@ class TileClient:
         if not self.data_source.exists():
             raise FileNotFoundError(f"PMTiles file not found: {self.data_source}")
 
-        dest_file = self.pmtiles_directory / self.data_source.name
-        if not dest_file.exists() or dest_file.stat().st_mtime < self.data_source.stat().st_mtime:
-            logger.debug(f"Copying PMTiles file to {dest_file}")
-            shutil.copy2(self.data_source, dest_file)
-
-        self.pmtiles_path = dest_file
+        # The archive lives in its own directory already; serve it in place.
+        self.pmtiles_path = self.data_source
 
     def _convert_vector_data(self) -> None:
         """
@@ -337,48 +331,44 @@ class TileClient:
         """Create a PMTiles layer for ipyleaflet.
 
         Args:
-            style: Optional custom style for the layer, passed through verbatim.
-            layers_to_show: Restrict the generated style to these layer IDs.
-                Ignored when a custom ``style`` is given.
+            style: Optional custom style for the layer. May be ``None`` (auto default style),
+                a full MapLibre style dict (passed through), or a builder callable
+                ``(metadata, pmtiles_url) -> dict``.
+            layers_to_show: Restrict the rendered style to these layer IDs.
         """
         try:
-            from vectortileserver.pmtiles_layer import LeafletPMTilesLayer
+            from vectortileserver.pmtiles_layer import VectorTileLayer
         except ImportError as e:
             raise ImportError(
                 "ipyleaflet is required to create a leaflet layer. "
                 "Install it with 'pip install ipyleaflet'."
             ) from e
 
+        from vectortileserver.styles import resolve_style
+
         # The browser, not this process, fetches the tiles. Bridge the loopback
         # port before handing out a URL, or nothing loads under Voila/SEPAL.
         self.enable_jupyter_loopback()
 
-        if style is not None:
-            if layers_to_show:
-                logger.warning("layers_to_show is ignored when a custom style is provided")
-            style_json = style
-        else:
-            style_json = generate_default_map_style(self.metadata, self.pmtiles_url)
+        style_json = resolve_style(style, self.metadata, self.pmtiles_url)
 
-            logger.debug(f"Generated style JSON: {json.dumps(style_json, indent=2)}")
-
-            if layers_to_show:
-                if not all(layer in self.list_layers() for layer in layers_to_show):
-                    raise ValueError(
-                        f"Invalid layer IDs provided. Available layers: {self.list_layers()}"
-                    )
-                style_json["layers"] = [
+        if layers_to_show:
+            if not all(layer in self.list_layers() for layer in layers_to_show):
+                raise ValueError(
+                    f"Invalid layer IDs provided. Available layers: {self.list_layers()}"
+                )
+            style_json = {
+                **style_json,
+                "layers": [
                     layer
-                    for layer in style_json["layers"]
-                    if layer["source-layer"] in layers_to_show
-                ]
+                    for layer in style_json.get("layers", [])
+                    if layer.get("source-layer") in layers_to_show
+                ],
+            }
 
-                logger.debug(f"Filtered style JSON: {json.dumps(style_json, indent=2)}")
-
-        # No `visible` kwarg: PMTilesLayer has no such trait, so traitlets only
-        # warns today and will raise in a future release.
-        return LeafletPMTilesLayer(
+        return VectorTileLayer._from_archive(
             url=self.pmtiles_url,
             style=style_json,
-            attribution="Vector Tile Server",
+            metadata=self.metadata,
+            source=self.data_source,
         )

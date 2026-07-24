@@ -1,5 +1,10 @@
 """Smoke tests: the package installs, imports, and exposes its entry point."""
 
+import importlib
+import sys
+
+import pytest
+
 import vectortileserver
 
 
@@ -43,3 +48,36 @@ def test_a_bare_import_stays_light():
     )
 
     assert heavy.stdout.strip() == "[]"
+
+
+def test_public_names_are_exposed_lazily():
+    import vectortileserver as vts
+
+    for name in (
+        "TileClient",
+        "VectorTileLayer",
+        "TileWorkspace",
+        "default_workspace",
+        "open",
+        "open_async",
+        "open_many",
+        "default_style",
+        "categorized_style",
+        "single_symbol_style",
+    ):
+        assert hasattr(vts, name), name
+
+
+def test_bare_import_does_not_pull_ipyleaflet():
+    for mod in [m for m in sys.modules if m.startswith(("ipyleaflet", "geopandas"))]:
+        del sys.modules[mod]
+    importlib.reload(importlib.import_module("vectortileserver"))
+    assert "ipyleaflet" not in sys.modules
+    assert "geopandas" not in sys.modules
+
+
+def test_unknown_attribute_still_raises():
+    import vectortileserver as vts
+
+    with pytest.raises(AttributeError):
+        vts.does_not_exist
