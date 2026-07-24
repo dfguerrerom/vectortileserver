@@ -23,7 +23,7 @@ def test_reopening_same_source_reuses_one_client(pmtiles_file):
 
 
 def test_bounds_unions_all_registered_archives(pmtiles_file, tmp_path):
-    from tests.conftest import write_minimal_pmtiles
+    from conftest import write_minimal_pmtiles
 
     second = write_minimal_pmtiles(tmp_path / "second.pmtiles")
     ws = TileWorkspace(allowed_directories=[pmtiles_file.parent, tmp_path])
@@ -92,7 +92,7 @@ def test_open_async_returns_a_ready_layer(pmtiles_file):
 
 
 def test_open_many_loads_every_source(pmtiles_file, tmp_path):
-    from tests.conftest import write_minimal_pmtiles
+    from conftest import write_minimal_pmtiles
 
     second = write_minimal_pmtiles(tmp_path / "second.pmtiles")
     ws = TileWorkspace(allowed_directories=[pmtiles_file.parent, tmp_path])
