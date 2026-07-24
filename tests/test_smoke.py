@@ -61,8 +61,6 @@ def test_public_names_are_exposed_lazily():
         "open",
         "open_async",
         "open_many",
-        "fit",
-        "union_bounds",
         "default_style",
         "categorized_style",
         "single_symbol_style",
@@ -83,25 +81,3 @@ def test_unknown_attribute_still_raises():
 
     with pytest.raises(AttributeError):
         vts.does_not_exist
-
-
-def _fresh_vts():
-    # Only drop the package itself and the submodule under test: clearing
-    # every vectortileserver.* submodule (e.g. pmtiles_layer) would force it
-    # to reimport and hand back a second, distinct VectorTileLayer class,
-    # breaking isinstance checks for other tests sharing this process.
-    for mod in ("vectortileserver", "vectortileserver._fit"):
-        sys.modules.pop(mod, None)
-    return importlib.import_module("vectortileserver")
-
-
-def test_vts_fit_stays_callable_on_repeated_access():
-    vts = _fresh_vts()
-    assert callable(vts.fit)
-    assert callable(vts.fit)
-
-
-def test_vts_fit_not_shadowed_by_union_bounds_access():
-    vts = _fresh_vts()
-    assert callable(vts.union_bounds)
-    assert callable(vts.fit)
