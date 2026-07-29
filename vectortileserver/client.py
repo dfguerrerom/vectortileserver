@@ -107,7 +107,7 @@ class TileClient:
     def __init__(
         self,
         data_source: Union[str, Path] | None = None,
-        host: str = "localhost",
+        host: str = "127.0.0.1",
         port: Optional[int] = None,
         converter: Optional[TileConverter] = None,
         conversion_options: Dict[str, Any] | None = None,
@@ -358,7 +358,7 @@ class TileClient:
         from vectortileserver.styles import resolve_style
 
         # The browser, not this process, fetches the tiles. Bridge the loopback
-        # port before handing out a URL, or nothing loads under Voila/SEPAL.
+        # port before handing out a URL, or nothing loads under Voila/Colab.
         self.enable_jupyter_loopback()
 
         style_json = resolve_style(style, self.metadata, self.pmtiles_url)

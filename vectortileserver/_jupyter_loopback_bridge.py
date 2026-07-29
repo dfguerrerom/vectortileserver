@@ -5,7 +5,7 @@ PMTiles are read by the browser with HTTP Range requests against the tile
 server running inside the kernel. In JupyterLab and Notebook 7 the notebook
 page shares an origin with the jupyter-server, so either the loopback URL or
 the proxy prefix from :mod:`vectortileserver.configure` gets there. Voila,
-SEPAL, VS Code Jupyter, and Colab render outputs in a sandboxed webview whose
+VS Code Jupyter, and Colab render outputs in a sandboxed webview whose
 origin is *not* the jupyter-server: ``http://localhost:<port>`` is unreachable
 and tiles silently fail.
 
@@ -86,7 +86,7 @@ def enable_for_port(port: Optional[int], *, path_prefix: Optional[str] = None) -
         if not _warned_unavailable:
             logger.warning(
                 f"Cannot enable the jupyter-loopback comm bridge: {e}. Tiles may not load "
-                "in Voila / SEPAL / VS Code / Colab. Install it with "
+                "in Voila / VS Code / Colab. Install it with "
                 "`pip install jupyter-loopback[comm]`."
             )
             _warned_unavailable = True
@@ -99,7 +99,7 @@ def enable_for_port(port: Optional[int], *, path_prefix: Optional[str] = None) -
         if not _warned_failure:
             logger.warning(
                 f"Could not set up the jupyter-loopback bridge: {e}. Tiles may not load "
-                "in Voila / SEPAL / VS Code / Colab."
+                "in Voila / VS Code / Colab."
             )
             _warned_failure = True
         return

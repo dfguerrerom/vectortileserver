@@ -96,7 +96,7 @@ The defaults live in `vectortileserver.converter.DEFAULT_CONVERSION_OPTIONS`.
 
 ## Notebook frontends
 
-Tiles are fetched by the *browser*, which in many frontends cannot reach the kernel's `http://localhost:<port>` directly. `vectortileserver` tunnels them over the kernel's own comm channel with [`jupyter-loopback`](https://github.com/banesullivan/jupyter-loopback): `create_leaflet_layer()` installs the bridge automatically (once per port), and the same path works in JupyterLab, Notebook 7, Voila, SEPAL, VS Code Jupyter, and Colab. HTTP Range requests and `206 Partial Content` — what PMTiles relies on — survive the trip.
+Tiles are fetched by the *browser*, which in many frontends cannot reach the kernel's `http://localhost:<port>` directly. `vectortileserver` tunnels them over the kernel's own comm channel with [`jupyter-loopback`](https://github.com/banesullivan/jupyter-loopback): `create_leaflet_layer()` installs the bridge automatically (once per port), and the same path works in JupyterLab, Notebook 7, Voila, VS Code Jupyter, and Colab. HTTP Range requests and `206 Partial Content` — what PMTiles relies on — survive the trip.
 
 | Environment variable | Effect |
 | --- | --- |

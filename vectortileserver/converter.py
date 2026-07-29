@@ -5,7 +5,9 @@ This module provides functionality to convert vector data to PMTiles format.
 """
 
 import logging
+import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Union
@@ -13,6 +15,22 @@ from typing import Any, Dict, List, Union
 import geopandas as gpd
 
 logger = logging.getLogger(__name__)
+
+
+def _resolve_tippecanoe(tippecanoe_path: str) -> str:
+    """Resolve the bare ``tippecanoe`` name when it isn't on PATH.
+
+    In a conda/micromamba env tippecanoe is installed next to ``sys.executable``,
+    but a venv launched by absolute path (a Jupyter kernel, say) doesn't have
+    that ``bin/`` on PATH -- so the bare-name subprocess lookup fails. Fall back
+    to the interpreter's sibling binary. An explicit path (anything other than
+    the bare default) is returned untouched.
+    """
+    if tippecanoe_path != "tippecanoe" or shutil.which(tippecanoe_path):
+        return tippecanoe_path
+    sibling = Path(sys.executable).parent / "tippecanoe"
+    return str(sibling) if sibling.exists() else tippecanoe_path
+
 
 #: Tippecanoe options applied unless the caller overrides them.
 #:
@@ -157,7 +175,7 @@ class TileConverter:
         tippecanoe installed.
         """
         cmd = [
-            self.tippecanoe_path,
+            _resolve_tippecanoe(self.tippecanoe_path),
             "-o",
             str(pmtiles_path),
             "-z",

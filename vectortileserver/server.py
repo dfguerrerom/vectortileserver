@@ -16,7 +16,7 @@ class ServerConfig:
 
     def __init__(
         self,
-        host: str = "localhost",
+        host: str = "127.0.0.1",
         port: Optional[int] = None,
         cors_origins: List[str] | None = None,
         allowed_directories: List[Union[str, Path]] | None = None,
@@ -64,7 +64,7 @@ class TileServer:
 
     def __init__(
         self,
-        host: str = "localhost",
+        host: str = "127.0.0.1",
         port: Optional[int] = None,
         auto_start: bool = False,
         allowed_directories: List[Union[str, Path]] | None = None,
