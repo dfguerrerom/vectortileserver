@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "vectortileserver"
-version = "0.2.0"
+version = "0.2.1"
 description = "Dynamic vector tile server for visualizing vectors in Jupyter notebooks"
 readme = "README.md"
 license = "MIT"

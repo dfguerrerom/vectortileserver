@@ -1,3 +1,9 @@
+## v0.2.1 (2026-07-30)
+
+### Fix
+
+- pass tippecanoe a temporary directory
+
 ## v0.2.0 (2026-07-27)
 
 ### Feat
