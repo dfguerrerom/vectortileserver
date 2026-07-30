@@ -7,7 +7,7 @@ import httpx
 
 from vectortileserver._jupyter_loopback_bridge import enable_for_port
 from vectortileserver.configure import get_default_client_prefix
-from vectortileserver.converter import TileConverter
+from vectortileserver.converter import CONTENT_NEUTRAL_OPTIONS, TileConverter
 from vectortileserver.handler import get_metadata
 from vectortileserver.logger import logger
 from vectortileserver.server import TileServer
@@ -22,6 +22,17 @@ def _conversion_record_path(pmtiles_path: Path) -> Path:
 def _normalize_options(options: Dict[str, Any]) -> Dict[str, Any]:
     """Round-trip options through JSON so recorded and requested values compare equal."""
     return json.loads(json.dumps(options or {}, sort_keys=True, default=str))
+
+
+def _cache_key_options(options: Dict[str, Any]) -> Dict[str, Any]:
+    """Options that identify an archive's contents.
+
+    Temporary-directory options are dropped: they yield the same tiles, so moving
+    one must not read as a settings change and force a reconversion.
+    """
+    return _normalize_options(
+        {k: v for k, v in (options or {}).items() if k not in CONTENT_NEUTRAL_OPTIONS}
+    )
 
 
 def _read_conversion_options(pmtiles_path: Path) -> Optional[Dict[str, Any]]:
@@ -79,7 +90,7 @@ def _write_conversion_options(pmtiles_path: Path, options: Dict[str, Any]) -> No
     """Record the options used, so a later run can tell whether they changed."""
     try:
         _conversion_record_path(pmtiles_path).write_text(
-            json.dumps({"options": _normalize_options(options)}, sort_keys=True, indent=2)
+            json.dumps({"options": _cache_key_options(options)}, sort_keys=True, indent=2)
         )
     except OSError as e:
         # Losing the record only costs a redundant reconversion next time.
@@ -266,7 +277,7 @@ class TileClient:
         if recorded is None:
             logger.debug(f"No conversion record for {cached}; reconverting under current settings")
             return False
-        if recorded != _normalize_options(self.conversion_options):
+        if recorded != _cache_key_options(self.conversion_options):
             logger.debug(f"Conversion options changed since {cached} was built; reconverting")
             return False
 
