@@ -16,6 +16,7 @@ from conftest import count_tile_features, write_points
 
 from vectortileserver.client import (
     TileClient,
+    _cache_key_options,
     _read_conversion_options,
     _source_mtime,
     _write_conversion_options,
@@ -380,3 +381,86 @@ def test_editing_shapefile_attributes_invalidates_the_cache(tmp_path):
     os.utime(tmp_path / "data.dbf", (2_000_000, 2_000_000))
 
     assert not first._can_reuse(first.pmtiles_path)
+
+
+# --------------------------------------------------------------------------- #
+# Temporary directory                                                           #
+# --------------------------------------------------------------------------- #
+
+
+def test_scratch_defaults_to_the_output_directory(tmp_path):
+    source = write_points(tmp_path / "pts.geojson")
+    out = tmp_path / "tiles"
+
+    assert TileConverter(source, out).scratch_dir == out
+
+
+def test_temp_dir_overrides_the_scratch_location(tmp_path):
+    source = write_points(tmp_path / "pts.geojson")
+    scratch = tmp_path / "fast"
+
+    assert TileConverter(source, tmp_path, temp_dir=scratch).scratch_dir == scratch
+
+
+def test_tippecanoe_is_told_where_to_scratch(tmp_path):
+    """$TMPDIR does not reach tippecanoe, so the flag is the only way to move its
+    temporary files off a slow /tmp."""
+    cmd = build_command(tmp_path)
+
+    assert "--temporary-directory" in cmd
+    assert cmd[cmd.index("--temporary-directory") + 1] == str(tmp_path)
+
+
+def test_caller_can_redirect_the_scratch_flag(tmp_path):
+    cmd = build_command(tmp_path, temporary_directory="/somewhere/fast")
+
+    assert cmd.count("--temporary-directory") == 1
+    assert cmd[cmd.index("--temporary-directory") + 1] == "/somewhere/fast"
+
+
+def test_scratch_flag_can_be_switched_off(tmp_path):
+    """Opting back into tippecanoe's own default, like the other overridable flags."""
+    cmd = build_command(tmp_path, temporary_directory=False)
+
+    assert "--temporary-directory" not in cmd
+
+
+def test_scratch_location_is_not_part_of_the_archive_identity(tmp_path):
+    """Otherwise a per-run temporary directory reconverts on every run."""
+    recorded = _cache_key_options({"drop_rate": 1, "temporary_directory": "/tmp/somewhere"})
+
+    assert recorded == {"drop_rate": 1}
+
+
+@requires_tippecanoe
+def test_scratching_into_the_output_directory_leaves_only_the_archive(tmp_path):
+    """The default puts the temporary files where the output goes, so they must be cleaned up."""
+    source = write_points(tmp_path / "pts.geojson")
+    out = tmp_path / "tiles"
+
+    pmtiles_path = TileConverter(source, out).convert()
+
+    assert pmtiles_path.exists()
+    assert sorted(p.name for p in out.iterdir()) == ["pts.pmtiles"]
+
+
+@requires_tippecanoe
+def test_changing_only_the_scratch_dir_reuses_the_archive(tmp_path):
+    source = write_points(tmp_path / "pts.geojson")
+    first = TileClient(
+        source,
+        allowed_directories=[tmp_path],
+        conversion_options={"temporary_directory": str(tmp_path)},
+    )
+    os.utime(source, (1_000_000, 1_000_000))
+    os.utime(first.pmtiles_path, (2_000_000, 2_000_000))
+
+    scratch = tmp_path / "elsewhere"
+    scratch.mkdir()
+    second = TileClient(
+        source,
+        allowed_directories=[tmp_path],
+        conversion_options={"temporary_directory": str(scratch)},
+    )
+
+    assert second.pmtiles_path.stat().st_mtime == 2_000_000

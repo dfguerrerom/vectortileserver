@@ -29,6 +29,10 @@ DEFAULT_CONVERSION_OPTIONS: Dict[str, Any] = {
     "no_tile_size_limit": True,
 }
 
+#: Options that choose where tippecanoe works, not what it produces, so they must
+#: not count toward an archive's cache identity.
+CONTENT_NEUTRAL_OPTIONS = frozenset({"temporary_directory", "t"})
+
 _TIPPECANOE_INSTALL_HINT = (
     "Install it from https://github.com/felt/tippecanoe or with "
     "`conda install -c conda-forge tippecanoe`."
@@ -45,6 +49,7 @@ class TileConverter:
         input_path: Union[str, Path],
         output_path: Union[str, Path] | None = None,
         tippecanoe_path: str = "tippecanoe",
+        temp_dir: Union[str, Path] | None = None,
     ):
         """
         Initialize the tile converter.
@@ -53,12 +58,14 @@ class TileConverter:
             input_path: Path to the input vector data
             output_path: Directory to write the output PMTiles file into
             tippecanoe_path: Path to the tippecanoe executable
+            temp_dir: Temporary directory for the conversion. Defaults to ``output_path``.
         """
         self.input_path = Path(input_path)
         self.output_path = (
             Path(output_path) if output_path else self.input_path.with_suffix(".tiles")
         )
         self.tippecanoe_path = tippecanoe_path
+        self.temp_dir = Path(temp_dir) if temp_dir else None
 
         # Validate input file existence
         if not self.input_path.exists():
@@ -68,6 +75,17 @@ class TileConverter:
     def pmtiles_path(self) -> Path:
         """Path of the PMTiles file this converter writes."""
         return self.output_path / f"{self.input_path.stem}.pmtiles"
+
+    @property
+    def scratch_dir(self) -> Path:
+        """Temporary files for one conversion: tippecanoe's own, plus the GeoJSON
+        copy of a non-GeoJSON input.
+
+        Defaults to the output directory, not the system temp dir: tippecanoe writes
+        many small temporary files and puts them in ``/tmp`` whatever ``$TMPDIR``
+        says, which dominates conversion time when ``/tmp`` is a network filesystem.
+        """
+        return self.temp_dir or self.output_path
 
     def convert(
         self,
@@ -96,12 +114,14 @@ class TileConverter:
             Path: Path to the output PMTiles file
         """
         self.output_path.mkdir(parents=True, exist_ok=True)
+        scratch_dir = self.scratch_dir
+        scratch_dir.mkdir(parents=True, exist_ok=True)
         pmtiles_path = self.pmtiles_path
 
         # Non-GeoJSON inputs are transcoded into a scratch directory rather than
         # next to the source: writing `<stem>.geojson` beside a shapefile would
         # silently overwrite a file the user may already have there.
-        with tempfile.TemporaryDirectory(prefix="vectortileserver-") as tmpdir:
+        with tempfile.TemporaryDirectory(prefix="vectortileserver-", dir=scratch_dir) as tmpdir:
             geojson_path = self._ensure_geojson(self.input_path, Path(tmpdir))
             cmd = self._build_command(pmtiles_path, geojson_path, max_zoom, min_zoom, kwargs)
 
@@ -149,7 +169,12 @@ class TileConverter:
             "--force",  # Overwrite existing files
         ]
 
-        for key, value in {**DEFAULT_CONVERSION_OPTIONS, **options}.items():
+        defaults = {
+            **DEFAULT_CONVERSION_OPTIONS,
+            "temporary_directory": str(self.scratch_dir),
+        }
+
+        for key, value in {**defaults, **options}.items():
             # Falsy flags are dropped, not rendered as `--flag False`; that is
             # what lets a caller switch one of the defaults back off.
             if value is False or value is None:
