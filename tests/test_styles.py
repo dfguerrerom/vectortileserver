@@ -1,3 +1,5 @@
+import pytest
+
 from vectortileserver.styles import (
     categorized_style,
     default_style,
@@ -44,3 +46,32 @@ def test_resolve_style_passes_dicts_through_and_calls_builders():
     assert resolve_style({"version": 8, "layers": []}, META, URL) == {"version": 8, "layers": []}
     assert resolve_style(None, META, URL) == default_style(META, URL)
     assert resolve_style(single_symbol_style(color="#000000"), META, URL)["layers"]
+
+
+def test_categorized_style_uses_explicit_colors():
+    build = categorized_style("map_code", [0, 1], colors=["#111111", "#222222"])
+    style = build(META, URL)
+    circle = next(layer for layer in style["layers"] if layer["type"] == "circle")
+
+    assert circle["paint"]["circle-color"] == [
+        "match",
+        ["get", "map_code"],
+        0,
+        "#111111",
+        1,
+        "#222222",
+        "#CCCCCC",
+    ]
+
+
+def test_categorized_style_cycles_explicit_colors():
+    build = categorized_style("map_code", [0, 1, 2], colors=["#111111", "#222222"])
+    style = build(META, URL)
+    circle = next(layer for layer in style["layers"] if layer["type"] == "circle")
+
+    assert circle["paint"]["circle-color"][7] == "#111111"
+
+
+def test_categorized_style_rejects_an_empty_color_list():
+    with pytest.raises(ValueError):
+        categorized_style("map_code", [0], colors=[])

@@ -1,6 +1,6 @@
 import colorsys
 import random
-from typing import Callable, List, Union
+from typing import Callable, List, Optional, Union
 
 
 def generate_color_palette(palette_type="vibrant", num_colors=5):
@@ -176,14 +176,37 @@ def single_symbol_style(*, color: str = "#3388ff") -> Callable[[dict, str], dict
 
 
 def categorized_style(
-    field: str, values: list, *, palette: str = "earth"
+    field: str,
+    values: list,
+    *,
+    palette: str = "earth",
+    colors: Optional[List[str]] = None,
 ) -> Callable[[dict, str], dict]:
-    """Style builder: color by ``field``, one deterministic palette color per value."""
-    colors = _palette(palette)
+    """Style builder: color by ``field``, one color per value.
+
+    Args:
+        field: feature property to switch on.
+        values: values to assign colors to, in order.
+        palette: named palette used when ``colors`` is not given.
+        colors: explicit colors, cycled if shorter than ``values``. Pass this to
+            reuse an assignment the caller already made elsewhere, so the two
+            cannot drift.
+
+    Returns:
+        A builder taking ``(metadata, pmtiles_url)``.
+
+    Raises:
+        ValueError: if ``colors`` is given but empty.
+    """
+    swatches = _palette(palette) if colors is None else colors
+    if not swatches:
+        raise ValueError("colors must not be empty")
+
     expr = ["match", ["get", field]]
     for j, value in enumerate(values):
-        expr += [value, colors[j % len(colors)]]
+        expr += [value, swatches[j % len(swatches)]]
     expr.append("#CCCCCC")
+
     return lambda metadata, pmtiles_url: _style_from_colors(metadata, pmtiles_url, lambda i: expr)
 
 
