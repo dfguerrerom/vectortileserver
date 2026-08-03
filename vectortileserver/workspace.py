@@ -33,7 +33,7 @@ class TileWorkspace:
     def __init__(
         self,
         *,
-        host: str = "localhost",
+        host: str = "127.0.0.1",
         port: Optional[int] = None,
         allowed_directories: Optional[List[Union[str, Path]]] = None,
         client_prefix: Optional[str] = None,

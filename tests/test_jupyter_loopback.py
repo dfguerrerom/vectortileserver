@@ -3,7 +3,7 @@ Reaching the tile server from the browser (issue #3).
 
 PMTiles are read with HTTP Range requests. The browser reaches the kernel's
 loopback tile server through the jupyter_loopback comm bridge — which works in
-every frontend (JupyterLab, Voila, SEPAL, VS Code, Colab). What matters is that
+every frontend (JupyterLab, Voila, VS Code, Colab). What matters is that
 `Range` and `206` survive that trip. A URL prefix is a manual reverse-proxy
 override, nothing more; there is deliberately no autodetected proxy path.
 """
@@ -61,7 +61,7 @@ def test_an_empty_environment_value_forces_the_loopback_url(monkeypatch):
 
 def test_the_url_is_a_loopback_url_by_default(client):
     assert client.client_prefix is None
-    assert client.pmtiles_url.startswith(f"http://localhost:{client.server_port}/pmtiles?filePath=")
+    assert client.pmtiles_url.startswith(f"http://127.0.0.1:{client.server_port}/pmtiles?filePath=")
 
 
 def test_a_manual_prefix_is_used_in_the_url(pmtiles_file, monkeypatch):

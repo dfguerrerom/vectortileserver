@@ -9,6 +9,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -21,7 +22,7 @@ from vectortileserver.client import (
     _source_mtime,
     _write_conversion_options,
 )
-from vectortileserver.converter import TileConverter
+from vectortileserver.converter import TileConverter, _resolve_tippecanoe
 
 requires_tippecanoe = pytest.mark.skipif(
     shutil.which("tippecanoe") is None, reason="tippecanoe is not installed"
@@ -76,6 +77,48 @@ def test_missing_tippecanoe_is_reported_actionably(tmp_path):
 
     with pytest.raises(RuntimeError, match="not found"):
         converter.convert()
+
+
+# --------------------------------------------------------------------------- #
+# tippecanoe resolution — bare name that isn't on PATH                          #
+# --------------------------------------------------------------------------- #
+
+
+def test_resolve_tippecanoe_keeps_an_explicit_path():
+    # An explicit path is never second-guessed, even if it isn't on PATH.
+    assert _resolve_tippecanoe("/opt/x/tippecanoe") == "/opt/x/tippecanoe"
+
+
+def test_resolve_tippecanoe_falls_back_to_interpreter_sibling(monkeypatch, tmp_path):
+    # A venv launched by absolute path (a Jupyter kernel, say) has tippecanoe in
+    # bin/ but not on PATH -> resolve it next to sys.executable.
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    (bindir / "tippecanoe").write_text("")
+    monkeypatch.setattr(shutil, "which", lambda *_: None)
+    monkeypatch.setattr(sys, "executable", str(bindir / "python3"))
+
+    assert _resolve_tippecanoe("tippecanoe") == str(bindir / "tippecanoe")
+
+
+def test_resolve_tippecanoe_unchanged_when_no_sibling(monkeypatch, tmp_path):
+    bindir = tmp_path / "bin"
+    bindir.mkdir()  # no tippecanoe here
+    monkeypatch.setattr(shutil, "which", lambda *_: None)
+    monkeypatch.setattr(sys, "executable", str(bindir / "python3"))
+
+    # Nothing to resolve to -> return the bare name so the actionable error fires.
+    assert _resolve_tippecanoe("tippecanoe") == "tippecanoe"
+
+
+def test_build_command_uses_the_resolved_tippecanoe(monkeypatch, tmp_path):
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    (bindir / "tippecanoe").write_text("")
+    monkeypatch.setattr(shutil, "which", lambda *_: None)
+    monkeypatch.setattr(sys, "executable", str(bindir / "python3"))
+
+    assert build_command(tmp_path)[0] == str(bindir / "tippecanoe")
 
 
 def test_data_source_is_required():
