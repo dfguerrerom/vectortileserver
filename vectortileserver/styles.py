@@ -101,6 +101,10 @@ def _palette(name: str = "earth") -> List[str]:
     return generate_color_palette(name, 10)
 
 
+#: Painted on features whose ``field`` value was never assigned a color.
+_UNMATCHED_COLOR = "#CCCCCC"
+
+
 def _source_block(pmtiles_url: str) -> dict:
     return {_SOURCE: {"type": "vector", "url": f"pmtiles://{pmtiles_url}"}}
 
@@ -175,6 +179,30 @@ def single_symbol_style(*, color: str = "#3388ff") -> Callable[[dict, str], dict
     return lambda metadata, pmtiles_url: _style_from_colors(metadata, pmtiles_url, lambda i: color)
 
 
+def _scoped(layer: dict, suffix: str, selector: Optional[list]) -> dict:
+    """Copy ``layer`` under a unique id, drawing only what ``selector`` picks."""
+    scoped = {**layer, "id": f"{layer['id']}-{suffix}"}
+    if selector is not None:
+        scoped["filter"] = selector
+
+    return scoped
+
+
+def _categorized_layers(metadata: dict, pmtiles_url: str, buckets: list) -> dict:
+    """Emit one fill + circle pair per bucket, plus the shared outline."""
+    layers = []
+    for vector_layer in metadata.get("vector_layers", []):
+        lid = vector_layer.get("id")
+        minz = vector_layer.get("minzoom", 0)
+        maxz = vector_layer.get("maxzoom", 22)
+        for suffix, color, selector in buckets:
+            layers.append(_scoped(_fill_layer(lid, minz, maxz, color), suffix, selector))
+            layers.append(_scoped(_circle_layer(lid, minz, maxz, color), suffix, selector))
+        # One neutral outline for every feature, as in the other builders.
+        layers.append(_outline_layer(lid, minz, maxz))
+    return {"version": 8, "sources": _source_block(pmtiles_url), "layers": layers}
+
+
 def categorized_style(
     field: str,
     values: list,
@@ -183,6 +211,16 @@ def categorized_style(
     colors: Optional[List[str]] = None,
 ) -> Callable[[dict, str], dict]:
     """Style builder: color by ``field``, one color per value.
+
+    Selects with filters rather than a ``["match", ["get", field], ...]`` paint
+    expression. protomaps-leaflet -- what renders these styles under
+    ipyleaflet's ``PMTilesLayer`` -- evaluates filters (``in``, ``!in``, ``==``,
+    comparisons) but has only one paint function, zoom interpolation. A match
+    expression is not evaluated there and silently paints every feature one
+    flat color, which is the whole point of this builder lost with no error.
+
+    One fill/circle pair is emitted per distinct color, so the layer count
+    follows the palette rather than the length of ``values``.
 
     Args:
         field: feature property to switch on.
@@ -202,12 +240,23 @@ def categorized_style(
     if not swatches:
         raise ValueError("colors must not be empty")
 
-    expr = ["match", ["get", field]]
+    # Group by color first: values sharing one swatch share one layer, and dict
+    # order keeps the emitted style stable between runs.
+    groups: dict = {}
     for j, value in enumerate(values):
-        expr += [value, swatches[j % len(swatches)]]
-    expr.append("#CCCCCC")
+        groups.setdefault(swatches[j % len(swatches)], []).append(value)
 
-    return lambda metadata, pmtiles_url: _style_from_colors(metadata, pmtiles_url, lambda i: expr)
+    if values:
+        buckets = [
+            (str(index), color, ["in", field, *assigned])
+            for index, (color, assigned) in enumerate(groups.items())
+        ]
+        # Anything the caller did not enumerate, matching the old fallback.
+        buckets.append(("other", _UNMATCHED_COLOR, ["!in", field, *values]))
+    else:
+        buckets = [("other", _UNMATCHED_COLOR, None)]
+
+    return lambda metadata, pmtiles_url: _categorized_layers(metadata, pmtiles_url, buckets)
 
 
 def resolve_style(
