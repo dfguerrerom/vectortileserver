@@ -1,3 +1,9 @@
+## v0.2.2 (2026-08-20)
+
+### Fix
+
+- bind IPv4 loopback and resolve tippecanoe next to the interpreter
+
 ## v0.2.1 (2026-07-30)
 
 ### Fix
