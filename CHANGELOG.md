@@ -1,3 +1,14 @@
+## v0.3.0 (2026-08-20)
+
+### Feat
+
+- **styles**: let categorized_style take an explicit color list
+
+### Fix
+
+- **styles**: select categorized colors with filters, not a paint expression
+- **endpoints**: serve only .pmtiles files
+
 ## v0.2.2 (2026-08-20)
 
 ### Fix

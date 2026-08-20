@@ -5,7 +5,7 @@ if TYPE_CHECKING:
 
 __title__ = "vectortileserver"
 __summary__ = "Local vector tile server for visualizing PMTiles in Jupyter"
-__version__ = "0.2.2"
+__version__ = "0.3.0"
 
 __author__ = "Daniel Guerrero"
 __email__ = "dfgm2006@gmail.com"
