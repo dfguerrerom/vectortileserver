@@ -1,6 +1,6 @@
 import colorsys
 import random
-from typing import Callable, List, Union
+from typing import Callable, List, Optional, Union
 
 
 def generate_color_palette(palette_type="vibrant", num_colors=5):
@@ -101,6 +101,10 @@ def _palette(name: str = "earth") -> List[str]:
     return generate_color_palette(name, 10)
 
 
+#: Painted on features whose ``field`` value was never assigned a color.
+_UNMATCHED_COLOR = "#CCCCCC"
+
+
 def _source_block(pmtiles_url: str) -> dict:
     return {_SOURCE: {"type": "vector", "url": f"pmtiles://{pmtiles_url}"}}
 
@@ -175,16 +179,84 @@ def single_symbol_style(*, color: str = "#3388ff") -> Callable[[dict, str], dict
     return lambda metadata, pmtiles_url: _style_from_colors(metadata, pmtiles_url, lambda i: color)
 
 
+def _scoped(layer: dict, suffix: str, selector: Optional[list]) -> dict:
+    """Copy ``layer`` under a unique id, drawing only what ``selector`` picks."""
+    scoped = {**layer, "id": f"{layer['id']}-{suffix}"}
+    if selector is not None:
+        scoped["filter"] = selector
+
+    return scoped
+
+
+def _categorized_layers(metadata: dict, pmtiles_url: str, buckets: list) -> dict:
+    """Emit one fill + circle pair per bucket, plus the shared outline."""
+    layers = []
+    for vector_layer in metadata.get("vector_layers", []):
+        lid = vector_layer.get("id")
+        minz = vector_layer.get("minzoom", 0)
+        maxz = vector_layer.get("maxzoom", 22)
+        for suffix, color, selector in buckets:
+            layers.append(_scoped(_fill_layer(lid, minz, maxz, color), suffix, selector))
+            layers.append(_scoped(_circle_layer(lid, minz, maxz, color), suffix, selector))
+        # One neutral outline for every feature, as in the other builders.
+        layers.append(_outline_layer(lid, minz, maxz))
+    return {"version": 8, "sources": _source_block(pmtiles_url), "layers": layers}
+
+
 def categorized_style(
-    field: str, values: list, *, palette: str = "earth"
+    field: str,
+    values: list,
+    *,
+    palette: str = "earth",
+    colors: Optional[List[str]] = None,
 ) -> Callable[[dict, str], dict]:
-    """Style builder: color by ``field``, one deterministic palette color per value."""
-    colors = _palette(palette)
-    expr = ["match", ["get", field]]
+    """Style builder: color by ``field``, one color per value.
+
+    Selects with filters rather than a ``["match", ["get", field], ...]`` paint
+    expression. protomaps-leaflet -- what renders these styles under
+    ipyleaflet's ``PMTilesLayer`` -- evaluates filters (``in``, ``!in``, ``==``,
+    comparisons) but has only one paint function, zoom interpolation. A match
+    expression is not evaluated there and silently paints every feature one
+    flat color, which is the whole point of this builder lost with no error.
+
+    One fill/circle pair is emitted per distinct color, so the layer count
+    follows the palette rather than the length of ``values``.
+
+    Args:
+        field: feature property to switch on.
+        values: values to assign colors to, in order.
+        palette: named palette used when ``colors`` is not given.
+        colors: explicit colors, cycled if shorter than ``values``. Pass this to
+            reuse an assignment the caller already made elsewhere, so the two
+            cannot drift.
+
+    Returns:
+        A builder taking ``(metadata, pmtiles_url)``.
+
+    Raises:
+        ValueError: if ``colors`` is given but empty.
+    """
+    swatches = _palette(palette) if colors is None else colors
+    if not swatches:
+        raise ValueError("colors must not be empty")
+
+    # Group by color first: values sharing one swatch share one layer, and dict
+    # order keeps the emitted style stable between runs.
+    groups: dict = {}
     for j, value in enumerate(values):
-        expr += [value, colors[j % len(colors)]]
-    expr.append("#CCCCCC")
-    return lambda metadata, pmtiles_url: _style_from_colors(metadata, pmtiles_url, lambda i: expr)
+        groups.setdefault(swatches[j % len(swatches)], []).append(value)
+
+    if values:
+        buckets = [
+            (str(index), color, ["in", field, *assigned])
+            for index, (color, assigned) in enumerate(groups.items())
+        ]
+        # Anything the caller did not enumerate, matching the old fallback.
+        buckets.append(("other", _UNMATCHED_COLOR, ["!in", field, *values]))
+    else:
+        buckets = [("other", _UNMATCHED_COLOR, None)]
+
+    return lambda metadata, pmtiles_url: _categorized_layers(metadata, pmtiles_url, buckets)
 
 
 def resolve_style(

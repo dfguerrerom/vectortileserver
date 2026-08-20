@@ -40,6 +40,12 @@ def _file_iterator(path: Path, start: int, length: int, chunk_size: int = 8192) 
             yield chunk
 
 
+# The endpoint serves whatever `filePath` names inside an allowed directory, and
+# callers mount it on public origins. Serving only archives means containment is
+# enough to reason about.
+_ALLOWED_SUFFIXES = frozenset({".pmtiles"})
+
+
 def _validate_file_path(file_path: Path, tile_server_instance: "TileServer") -> Optional[str]:
     """
     Validate that a file path is within allowed directories.
@@ -50,6 +56,8 @@ def _validate_file_path(file_path: Path, tile_server_instance: "TileServer") -> 
     Returns:
         Error message if validation fails, None if valid
     """
+    if file_path.suffix.lower() not in _ALLOWED_SUFFIXES:
+        return "Access denied: only .pmtiles files are served"
 
     try:
         resolved_path = file_path.resolve()
