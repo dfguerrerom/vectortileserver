@@ -19,4 +19,4 @@ dependencies:
   - voila
   - pip
   - pip:
-      - -e .
+      - -e .[dev]
