@@ -86,9 +86,7 @@ def test_categorized_style_cycles_explicit_colors():
 
 def test_categorized_style_groups_values_sharing_a_color():
     """Layer count follows the palette, not the number of values."""
-    style = categorized_style("map_code", list(range(20)), colors=["#111111", "#222222"])(
-        META, URL
-    )
+    style = categorized_style("map_code", list(range(20)), colors=["#111111", "#222222"])(META, URL)
     fills = [layer for layer in style["layers"] if layer["type"] == "fill"]
 
     # two colors plus the unmatched bucket
@@ -140,5 +138,3 @@ def test_resolve_style_passes_dicts_through_and_calls_builders():
     assert resolve_style({"version": 8, "layers": []}, META, URL) == {"version": 8, "layers": []}
     assert resolve_style(None, META, URL) == default_style(META, URL)
     assert resolve_style(single_symbol_style(color="#000000"), META, URL)["layers"]
-
-
