@@ -14,6 +14,7 @@ __license__ = "MIT"
 
 __all__ = [  # noqa: RUF022 (grouped by module, matching _LAZY below)
     "TileClient",
+    "TileArchive",
     "VectorTileLayer",
     "TileWorkspace",
     "default_workspace",
@@ -27,6 +28,7 @@ __all__ = [  # noqa: RUF022 (grouped by module, matching _LAZY below)
 
 _LAZY = {
     "TileClient": "vectortileserver.client",
+    "TileArchive": "vectortileserver.archive",
     "VectorTileLayer": "vectortileserver.pmtiles_layer",
     "TileWorkspace": "vectortileserver.workspace",
     "default_workspace": "vectortileserver.workspace",
@@ -42,7 +44,7 @@ _LAZY = {
 def __getattr__(name: str):
     """Expose the public surface lazily so a bare ``import vectortileserver`` does
     not drag in ipyleaflet / geopandas (the jupyter-server process imports this
-    module and needs neither)."""
+    module and needs neither). ``VectorTileLayer`` needs the ``leaflet`` extra."""
     module = _LAZY.get(name)
     if module is not None:
         import importlib

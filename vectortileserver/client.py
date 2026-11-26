@@ -235,8 +235,8 @@ class TileClient:
         """
         Make this client's port reachable from sandboxed notebook frontends.
 
-        :meth:`create_leaflet_layer` calls this already; use it directly only when
-        building the tile URL into custom output.
+        :meth:`TileWorkspace.open` and :meth:`create_leaflet_layer` call this
+        already; use it directly only when building the tile URL into custom output.
         """
         enable_for_port(self.server_port, path_prefix=self.client_prefix)
 
@@ -339,7 +339,7 @@ class TileClient:
         style: Optional[Dict[str, Any]] = None,
         layers_to_show: Optional[List[str]] = None,
     ) -> Any:
-        """Create a PMTiles layer for ipyleaflet.
+        """Create a PMTiles layer for ipyleaflet. Needs the ``leaflet`` extra.
 
         Args:
             style: Optional custom style for the layer. May be ``None`` (auto default style),
@@ -347,14 +347,7 @@ class TileClient:
                 ``(metadata, pmtiles_url) -> dict``.
             layers_to_show: Restrict the rendered style to these layer IDs.
         """
-        try:
-            from vectortileserver.pmtiles_layer import VectorTileLayer
-        except ImportError as e:
-            raise ImportError(
-                "ipyleaflet is required to create a leaflet layer. "
-                "Install it with 'pip install ipyleaflet'."
-            ) from e
-
+        from vectortileserver.pmtiles_layer import VectorTileLayer
         from vectortileserver.styles import resolve_style
 
         # The browser, not this process, fetches the tiles. Bridge the loopback

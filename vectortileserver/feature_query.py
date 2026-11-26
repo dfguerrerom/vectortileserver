@@ -1,7 +1,13 @@
 import gzip
 import math
 
-import mapbox_vector_tile
+try:
+    import mapbox_vector_tile
+except ImportError as e:
+    raise ImportError(
+        "The click query decodes tiles with mapbox-vector-tile, which comes with the "
+        "leaflet extra: pip install 'vectortileserver[leaflet]'"
+    ) from e
 from pmtiles.reader import MmapSource, Reader
 from shapely import GeometryCollection
 from shapely.affinity import scale as shapely_scale

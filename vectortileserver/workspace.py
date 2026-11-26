@@ -3,6 +3,7 @@ import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
+from vectortileserver.archive import TileArchive
 from vectortileserver.handler import union_bbox_dicts
 
 
@@ -90,34 +91,32 @@ class TileWorkspace:
                 self._clients[key] = client
             return client
 
-    def open(self, source, *, style=None, layers_to_show=None, conversion_options=None):
-        client = self._client_for(source, conversion_options)
-        layer = client.create_leaflet_layer(style=style, layers_to_show=layers_to_show)
-        layer.workspace = self
-        return layer
+    def _archive(self, client) -> TileArchive:
+        # The browser, not this process, fetches the tiles: bridge the loopback
+        # port before handing out a URL, or nothing loads under Voila / SEPAL.
+        client.enable_jupyter_loopback()
+        return TileArchive._from_client(client, workspace=self)
 
-    async def open_async(self, source, *, style=None, layers_to_show=None, conversion_options=None):
-        """Convert (if needed) off-thread, then build the widget on the loop
-        thread. Drops into Solara ``use_task(prefer_threaded=False)``."""
+    def open(self, source, *, conversion_options=None) -> TileArchive:
+        """Convert ``source`` if needed, serve it, and describe what is served.
+
+        Build an ipyleaflet layer from the result with
+        :meth:`TileArchive.create_leaflet_layer`.
+        """
+        return self._archive(self._client_for(source, conversion_options))
+
+    async def open_async(self, source, *, conversion_options=None) -> TileArchive:
+        """Like :meth:`open`, converting off-thread. Drops into Solara
+        ``use_task(prefer_threaded=False)``."""
         # Conversion + server work is blocking and widget-free → offload it.
         client = await asyncio.to_thread(self._client_for, source, conversion_options)
-        # Widget construction must stay on the calling (loop) thread.
-        layer = client.create_leaflet_layer(style=style, layers_to_show=layers_to_show)
-        layer.workspace = self
-        return layer
+        # The bridge emits a widget, so it is installed on the calling (loop) thread.
+        return self._archive(client)
 
-    async def open_many(self, sources, *, style=None, layers_to_show=None, conversion_options=None):
+    async def open_many(self, sources, *, conversion_options=None) -> List[TileArchive]:
         """Open many sources concurrently (parallel tippecanoe via the thread pool)."""
         return await asyncio.gather(
-            *(
-                self.open_async(
-                    s,
-                    style=style,
-                    layers_to_show=layers_to_show,
-                    conversion_options=conversion_options,
-                )
-                for s in sources
-            )
+            *(self.open_async(s, conversion_options=conversion_options) for s in sources)
         )
 
     def bounds(self):
@@ -149,22 +148,16 @@ def default_workspace() -> TileWorkspace:
     return _DEFAULT_WORKSPACE
 
 
-def open(source, *, style=None, layers_to_show=None, conversion_options=None):
+def open(source, *, conversion_options=None) -> TileArchive:
     """Open a dataset on the default workspace (synchronous)."""
-    return default_workspace().open(
-        source, style=style, layers_to_show=layers_to_show, conversion_options=conversion_options
-    )
+    return default_workspace().open(source, conversion_options=conversion_options)
 
 
-async def open_async(source, *, style=None, layers_to_show=None, conversion_options=None):
+async def open_async(source, *, conversion_options=None) -> TileArchive:
     """Open a dataset on the default workspace, converting off-thread."""
-    return await default_workspace().open_async(
-        source, style=style, layers_to_show=layers_to_show, conversion_options=conversion_options
-    )
+    return await default_workspace().open_async(source, conversion_options=conversion_options)
 
 
-async def open_many(sources, *, style=None, layers_to_show=None, conversion_options=None):
+async def open_many(sources, *, conversion_options=None) -> List[TileArchive]:
     """Open many datasets on the default workspace, in parallel."""
-    return await default_workspace().open_many(
-        sources, style=style, layers_to_show=layers_to_show, conversion_options=conversion_options
-    )
+    return await default_workspace().open_many(sources, conversion_options=conversion_options)
