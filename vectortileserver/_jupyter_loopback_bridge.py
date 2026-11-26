@@ -115,10 +115,11 @@ def enable_jupyter_loopback(
     """
     Ensure the comm bridge is active for a tile server port.
 
-    :meth:`TileClient.create_leaflet_layer` already does this for its own port,
-    so most callers never need it. Reach for it when a port did not flow through
-    that path — for instance a :class:`~vectortileserver.server.TileServer`
-    feeding custom HTML output. Repeated calls for the same port are no-ops.
+    :meth:`TileWorkspace.open` and :meth:`TileClient.create_leaflet_layer`
+    already do this for their own port, so most callers never need it. Reach for
+    it when a port did not flow through either — for instance a
+    :class:`~vectortileserver.server.TileServer` feeding custom HTML output.
+    Repeated calls for the same port are no-ops.
 
     Args:
         port: Loopback port to intercept.

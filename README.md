@@ -18,8 +18,11 @@ micromamba activate vectortileserver
 Or install with pip and provide `tippecanoe` yourself (see [Installing Tippecanoe](#installing-tippecanoe)):
 
 ```bash
-pip install vectortileserver
+pip install "vectortileserver[leaflet]"   # converter + server + ipyleaflet layers
+pip install vectortileserver              # converter + server only
 ```
+
+The `leaflet` extra brings `ipyleaflet` and the server-side click query (`get_data_from_coords`). Leave it out when the map is drawn by something that reads PMTiles in the browser itself, such as MapLibre: the archive's URL is all that frontend needs.
 
 ## Demo
 
@@ -31,6 +34,8 @@ voila examples/demo.ipynb
 ```
 
 ## Usage
+
+With the `leaflet` extra:
 
 ```python
 from ipyleaflet import Map
@@ -44,33 +49,46 @@ m
 
 A conversion is reused as long as the `.pmtiles` file is at least as new as its source *and* was built with the same `conversion_options` — the options are recorded in a `<name>.pmtiles.json` sidecar. Edit the source or change the options and the next `TileClient` reconverts. Delete the `.pmtiles` to force a rebuild.
 
-## Layer-first API (recommended)
+## Workspace API (recommended)
 
 ```python
 import vectortileserver as vts
+
+archive = await vts.open_async("data.geojson")   # convert off-thread, then serve
+archive.url            # what the browser fetches
+archive.layers         # vector layer ids, e.g. ("data",)
+archive.bounds         # [[S, W], [N, E]], or None for a point/degenerate archive
+```
+
+`open` / `open_async` / `open_many` return a `TileArchive`, which needs no map
+library. Its port is already bridged to the browser (see [Notebook
+frontends](#notebook-frontends)), so `url` can go straight to a MapLibre
+`pmtiles://` source. For ipyleaflet, build a layer from it, which needs the
+`leaflet` extra:
+
+```python
 from ipyleaflet import Map
 
 m = Map()
-layer = await vts.open_async("data.geojson")   # convert off-thread → ready layer
+layer = archive.create_leaflet_layer()          # a VectorTileLayer (ipyleaflet PMTilesLayer)
 m.add(layer)
-if layer.bounds:                               # None for a point/degenerate archive
-    m.fit_bounds(layer.bounds)                 # zoom to the layer's own bounds
+if layer.bounds:
+    m.fit_bounds(layer.bounds)                   # zoom to the layer's own bounds
 
 # many datasets, in parallel:
-for layer in await vts.open_many(["a.geojson", "b.shp"]):
-    m.add(layer)
-bounds = vts.default_workspace().bounds()       # union of everything opened (None if none bounded)
+for archive in await vts.open_many(["a.geojson", "b.shp"]):
+    m.add(archive.create_leaflet_layer())
+bounds = vts.default_workspace().bounds()        # union of everything opened (None if none bounded)
 if bounds:
     m.fit_bounds(bounds)
 ```
 
-`open_async` runs tippecanoe on a worker thread and returns a `VectorTileLayer`
-(an ipyleaflet `PMTilesLayer`) that carries `.bounds` (`[[S,W],[N,E]]`),
-`.center`, and `.list_layers()`. Style it with a builder — `vts.default_style`,
-`vts.single_symbol_style(color=...)`, or `vts.categorized_style(field, values)` —
-and restyle by swapping `layer.with_style(...)`. For advanced control (explicit
-lifecycle, isolation), construct a `vts.TileWorkspace`. The classic
-`TileClient` API keeps working unchanged.
+`create_leaflet_layer` takes a style, either a builder (`vts.default_style`,
+`vts.single_symbol_style(color=...)`, `vts.categorized_style(field, values)`) or a
+full MapLibre style dict. Restyle by swapping `layer.with_style(...)`. Building
+a layer is cheap and never reconverts. For advanced control (explicit lifecycle,
+isolation), construct a `vts.TileWorkspace`. The classic `TileClient` API keeps
+working unchanged.
 
 ## Point retention
 
@@ -96,7 +114,7 @@ The defaults live in `vectortileserver.converter.DEFAULT_CONVERSION_OPTIONS`.
 
 ## Notebook frontends
 
-Tiles are fetched by the *browser*, which in many frontends cannot reach the kernel's `http://localhost:<port>` directly. `vectortileserver` tunnels them over the kernel's own comm channel with [`jupyter-loopback`](https://github.com/banesullivan/jupyter-loopback): `create_leaflet_layer()` installs the bridge automatically (once per port), and the same path works in JupyterLab, Notebook 7, Voila, VS Code Jupyter, and Colab. HTTP Range requests and `206 Partial Content` — what PMTiles relies on — survive the trip.
+Tiles are fetched by the *browser*, which in many frontends cannot reach the kernel's `http://localhost:<port>` directly. `vectortileserver` tunnels them over the kernel's own comm channel with [`jupyter-loopback`](https://github.com/banesullivan/jupyter-loopback): `open()` and `create_leaflet_layer()` install the bridge automatically (once per port), and the same path works in JupyterLab, Notebook 7, Voila, VS Code Jupyter, and Colab. HTTP Range requests and `206 Partial Content` — what PMTiles relies on — survive the trip.
 
 | Environment variable | Effect |
 | --- | --- |

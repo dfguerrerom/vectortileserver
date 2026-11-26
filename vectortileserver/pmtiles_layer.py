@@ -1,9 +1,14 @@
 from pathlib import Path
 from urllib.parse import unquote
 
-from ipyleaflet import PMTilesLayer
+try:
+    from ipyleaflet import PMTilesLayer
+except ImportError as e:
+    raise ImportError(
+        "VectorTileLayer needs ipyleaflet, which comes with the leaflet extra: "
+        "pip install 'vectortileserver[leaflet]'"
+    ) from e
 
-from vectortileserver.feature_query import query_rendered_features_from_pmtiles
 from vectortileserver.handler import to_leaflet_bounds
 from vectortileserver.styles import resolve_style
 
@@ -84,6 +89,8 @@ class VectorTileLayer(PMTilesLayer):
 
     def get_data_from_coords(self, lat, lon, zoom):
         """Get features at a specific latitude, longitude, and zoom level."""
+        from vectortileserver.feature_query import query_rendered_features_from_pmtiles
+
         data = query_rendered_features_from_pmtiles(self.pmtiles_path, self.style, lat, lon, zoom)
         for element in data:
             if "geometry" in element["feature"]:

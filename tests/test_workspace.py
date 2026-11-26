@@ -1,18 +1,63 @@
 import asyncio
 import threading
 
+from vectortileserver.archive import TileArchive
 from vectortileserver.pmtiles_layer import VectorTileLayer
-from vectortileserver.pmtiles_layer import VectorTileLayer as _VTL
+from vectortileserver.styles import single_symbol_style
 from vectortileserver.workspace import TileWorkspace, default_workspace
 from vectortileserver.workspace import open as ws_open
 
 
-def test_open_returns_a_layer_bound_to_the_workspace(pmtiles_file):
+def test_open_returns_an_archive_bound_to_the_workspace(pmtiles_file):
     ws = TileWorkspace(allowed_directories=[pmtiles_file.parent])
-    layer = ws.open(pmtiles_file)
+    archive = ws.open(pmtiles_file)
+    client = next(iter(ws._clients.values()))
+    assert isinstance(archive, TileArchive)
+    assert archive.workspace is ws
+    assert archive.client is client
+    assert archive.url == client.pmtiles_url
+    assert archive.layers == ("points",)
+    assert archive.list_layers() == ["points"]
+    assert archive.bounds == [[0.0, 0.0], [0.01, 0.01]]
+    assert archive.center == (0.005, 0.005)
+    assert archive.source == pmtiles_file
+    assert archive.pmtiles_path == pmtiles_file
+
+
+def test_open_bridges_the_port_before_handing_out_the_url(pmtiles_file, monkeypatch):
+    # A MapLibre frontend fetches `url` itself; without the bridge it is
+    # unreachable from Voila / SEPAL webviews.
+    bridged = []
+    monkeypatch.setattr(
+        "vectortileserver.client.enable_for_port",
+        lambda port, *, path_prefix=None: bridged.append(port),
+    )
+    ws = TileWorkspace(allowed_directories=[pmtiles_file.parent])
+
+    ws.open(pmtiles_file)
+    asyncio.run(ws.open_async(pmtiles_file))
+
+    assert bridged == [ws.port, ws.port]
+
+
+def test_archive_builds_a_leaflet_layer_on_request(pmtiles_file):
+    ws = TileWorkspace(allowed_directories=[pmtiles_file.parent])
+    archive = ws.open(pmtiles_file)
+
+    layer = archive.create_leaflet_layer(style=single_symbol_style(color="#abcdef"))
+
     assert isinstance(layer, VectorTileLayer)
     assert layer.workspace is ws
-    assert layer.bounds == [[0.0, 0.0], [0.01, 0.01]]
+    assert layer.url == archive.url
+    assert layer.bounds == archive.bounds
+    fills = [layer_ for layer_ in layer.style["layers"] if layer_["type"] == "fill"]
+    assert fills and fills[0]["paint"]["fill-color"] == "#abcdef"
+
+
+def test_archive_leaflet_layer_honours_layers_to_show(pmtiles_file):
+    archive = TileWorkspace(allowed_directories=[pmtiles_file.parent]).open(pmtiles_file)
+    layer = archive.create_leaflet_layer(layers_to_show=["points"])
+    assert {layer_["source-layer"] for layer_ in layer.style["layers"]} == {"points"}
 
 
 def test_reopening_same_source_reuses_one_client(pmtiles_file):
@@ -84,11 +129,12 @@ def test_reopen_with_different_conversion_options_reuses_cached_client(pmtiles_f
     assert client_after is client_before
 
 
-def test_open_async_returns_a_ready_layer(pmtiles_file):
+def test_open_async_returns_a_ready_archive(pmtiles_file):
     ws = TileWorkspace(allowed_directories=[pmtiles_file.parent])
-    layer = asyncio.run(ws.open_async(pmtiles_file))
-    assert isinstance(layer, _VTL)
-    assert layer.bounds == [[0.0, 0.0], [0.01, 0.01]]
+    archive = asyncio.run(ws.open_async(pmtiles_file))
+    assert isinstance(archive, TileArchive)
+    assert archive.workspace is ws
+    assert archive.bounds == [[0.0, 0.0], [0.01, 0.01]]
 
 
 def test_open_many_loads_every_source(pmtiles_file, tmp_path):
@@ -96,9 +142,10 @@ def test_open_many_loads_every_source(pmtiles_file, tmp_path):
 
     second = write_minimal_pmtiles(tmp_path / "second.pmtiles")
     ws = TileWorkspace(allowed_directories=[pmtiles_file.parent, tmp_path])
-    layers = asyncio.run(ws.open_many([pmtiles_file, second]))
-    assert len(layers) == 2
-    assert all(isinstance(layer, _VTL) for layer in layers)
+    archives = asyncio.run(ws.open_many([pmtiles_file, second]))
+    assert len(archives) == 2
+    assert all(isinstance(archive, TileArchive) for archive in archives)
+    assert archives[0].url != archives[1].url
 
 
 def test_default_workspace_is_a_singleton():
@@ -106,6 +153,6 @@ def test_default_workspace_is_a_singleton():
 
 
 def test_module_open_uses_the_default_workspace(pmtiles_file):
-    layer = ws_open(pmtiles_file)
-    assert layer.workspace is default_workspace()
-    assert layer.bounds == [[0.0, 0.0], [0.01, 0.01]]
+    archive = ws_open(pmtiles_file)
+    assert archive.workspace is default_workspace()
+    assert archive.bounds == [[0.0, 0.0], [0.01, 0.01]]

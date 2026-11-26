@@ -15,12 +15,9 @@ dependencies = [
   "uvicorn",
   "httpx",
   "colorlog",
-  "ipyleaflet",
   "jupyter-loopback[comm]>=0.3.3",
   "pmtiles",
-  "shapely",
   "geopandas",
-  "mapbox-vector-tile",
 ]
 classifiers = [
   "Development Status :: 3 - Alpha",
@@ -36,6 +33,13 @@ Repository = "https://github.com/dfguerrerom/vectortileserver"
 Changelog = "https://github.com/dfguerrerom/vectortileserver/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
+# ipyleaflet layers, their styles, and the server-side click query. A MapLibre
+# frontend reads the archive URL itself and needs none of it.
+leaflet = [
+  "ipyleaflet",
+  "mapbox-vector-tile",
+  "shapely",
+]
 dev = [
   "pytest>=8",
   "ruff>=0.5",
